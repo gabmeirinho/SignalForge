@@ -1,0 +1,53 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyre/
+.coverage
+coverage.xml
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment and local secrets
+.env
+.env.*
+!.env.example
+
+# Editor and OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# SEC downloads and generated pipeline data
+sec-edgar-filings/
+data/raw/
+data/processed/
+data/interim/
+data/external/
+
+# Local databases and vector stores
+*.db
+*.sqlite
+*.sqlite3
+chroma/
+qdrant_storage/
+
+# Generated data exports
+*.csv
+*.jsonl
+*.parquet
+*.feather
