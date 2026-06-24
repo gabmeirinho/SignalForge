@@ -22,9 +22,17 @@ def main() -> None:
 
     with connect_database(args.db_path) as connection:
         initialize_database(connection)
-        rows = load_chunks_for_vector_index(connection)
+        rows = load_chunks_for_vector_index(
+            connection,
+            embedding_model=args.model,
+            vector_collection=args.collection,
+        )
         if not rows:
-            raise RuntimeError("No chunks found in SQLite. Run ingest.py first.")
+            print(
+                "No chunks require indexing for collection "
+                f"{args.collection!r} using {args.model!r}."
+            )
+            return
 
         rows_by_filing = defaultdict(list)
         for row in rows:

@@ -4,6 +4,7 @@ from storage import (
     connect_database,
     get_ready_accession_numbers,
     initialize_database,
+    load_chunks_for_vector_index,
     replace_filing_chunks,
     set_embedding_run_status,
     upsert_filing,
@@ -41,6 +42,13 @@ def test_embedding_status_controls_search_readiness_and_resets_on_reingestion(tm
             )
         ]
         replace_filing_chunks(connection, filing_id, chunks)
+        assert len(
+            load_chunks_for_vector_index(
+                connection,
+                embedding_model=MODEL,
+                vector_collection=COLLECTION,
+            )
+        ) == 1
 
         set_embedding_run_status(
             connection,
@@ -51,6 +59,13 @@ def test_embedding_status_controls_search_readiness_and_resets_on_reingestion(tm
             expected_point_count=1,
             error_message="Qdrant timeout",
         )
+        assert len(
+            load_chunks_for_vector_index(
+                connection,
+                embedding_model=MODEL,
+                vector_collection=COLLECTION,
+            )
+        ) == 1
         assert get_ready_accession_numbers(
             connection,
             embedding_model=MODEL,
@@ -66,6 +81,14 @@ def test_embedding_status_controls_search_readiness_and_resets_on_reingestion(tm
             expected_point_count=1,
             indexed_point_count=1,
         )
+        assert (
+            load_chunks_for_vector_index(
+                connection,
+                embedding_model=MODEL,
+                vector_collection=COLLECTION,
+            )
+            == []
+        )
         assert get_ready_accession_numbers(
             connection,
             embedding_model=MODEL,
@@ -74,6 +97,13 @@ def test_embedding_status_controls_search_readiness_and_resets_on_reingestion(tm
         ) == ["0001045810-26-000021"]
 
         replace_filing_chunks(connection, filing_id, chunks)
+        assert len(
+            load_chunks_for_vector_index(
+                connection,
+                embedding_model=MODEL,
+                vector_collection=COLLECTION,
+            )
+        ) == 1
         run = connection.execute(
             """
             SELECT status, indexed_point_count, error_message

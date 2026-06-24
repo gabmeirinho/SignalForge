@@ -199,7 +199,12 @@ def replace_filing_chunks(
     connection.commit()
 
 
-def load_chunks_for_vector_index(connection: sqlite3.Connection) -> list[sqlite3.Row]:
+def load_chunks_for_vector_index(
+    connection: sqlite3.Connection,
+    *,
+    embedding_model: str,
+    vector_collection: str,
+) -> list[sqlite3.Row]:
     return connection.execute(
         """
         SELECT
@@ -218,8 +223,14 @@ def load_chunks_for_vector_index(connection: sqlite3.Connection) -> list[sqlite3
             f.period_of_report
         FROM chunks AS c
         JOIN filings AS f ON f.id = c.filing_id
+        LEFT JOIN embedding_runs AS er
+          ON er.filing_id = f.id
+         AND er.embedding_model = ?
+         AND er.vector_collection = ?
+        WHERE er.status IS NULL OR er.status != 'ready'
         ORDER BY f.id, c.section_id, c.chunk_index
-        """
+        """,
+        (embedding_model, vector_collection),
     ).fetchall()
 
 
