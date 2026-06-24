@@ -1,3 +1,4 @@
+import hashlib
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -80,7 +81,9 @@ def ingest_downloaded_filing(
     filing_path = Path(filing_path)
     ticker = ticker.upper()
 
-    raw_submission = filing_path.read_text(encoding="utf-8")
+    raw_bytes = filing_path.read_bytes()
+    raw_sha256 = hashlib.sha256(raw_bytes).hexdigest()
+    raw_submission = raw_bytes.decode("utf-8")
     metadata_values = parse_submission_metadata(raw_submission)
     accession_number = metadata_values.get("accession_number") or filing_path.parent.name
     form_type = metadata_values.get("form_type") or "10-K"
@@ -106,6 +109,7 @@ def ingest_downloaded_filing(
         filing_date=metadata_values.get("filing_date"),
         period_of_report=metadata_values.get("period_of_report"),
         raw_path=str(filing_path),
+        raw_sha256=raw_sha256,
         clean_text_path=str(clean_text_path),
     )
 

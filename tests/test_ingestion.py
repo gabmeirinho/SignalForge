@@ -1,3 +1,4 @@
+import hashlib
 from pathlib import Path
 
 from ingestion import ingest_downloaded_filing, parse_submission_metadata
@@ -69,6 +70,7 @@ def test_ingest_downloaded_filing_writes_clean_text_and_sqlite_rows(tmp_path: Pa
     assert filing_rows[0]["ticker"] == "NVDA"
     assert filing_rows[0]["company_name"] == "EXAMPLE CORP"
     assert filing_rows[0]["filing_date"] == "2026-02-25"
+    assert filing_rows[0]["raw_sha256"] == hashlib.sha256(filing_path.read_bytes()).hexdigest()
     assert {row["section_id"] for row in chunk_rows} == {"1", "1A", "7", "7A"}
     assert all(row["text"] for row in chunk_rows)
 

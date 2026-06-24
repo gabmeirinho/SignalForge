@@ -16,6 +16,7 @@ class FilingMetadata:
     filing_date: str | None
     period_of_report: str | None
     raw_path: str
+    raw_sha256: str
     clean_text_path: str
 
 
@@ -42,6 +43,7 @@ def initialize_database(connection: sqlite3.Connection) -> None:
             filing_date TEXT,
             period_of_report TEXT,
             raw_path TEXT NOT NULL,
+            raw_sha256 TEXT NOT NULL,
             clean_text_path TEXT NOT NULL,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -72,6 +74,11 @@ def initialize_database(connection: sqlite3.Connection) -> None:
         );
         """
     )
+    filing_columns = {
+        row["name"] for row in connection.execute("PRAGMA table_info(filings)").fetchall()
+    }
+    if "raw_sha256" not in filing_columns:
+        connection.execute("ALTER TABLE filings ADD COLUMN raw_sha256 TEXT")
     connection.commit()
 
 
@@ -87,9 +94,10 @@ def upsert_filing(connection: sqlite3.Connection, metadata: FilingMetadata) -> i
             filing_date,
             period_of_report,
             raw_path,
+            raw_sha256,
             clean_text_path
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(accession_number) DO UPDATE SET
             ticker = excluded.ticker,
             cik = excluded.cik,
@@ -98,6 +106,7 @@ def upsert_filing(connection: sqlite3.Connection, metadata: FilingMetadata) -> i
             filing_date = excluded.filing_date,
             period_of_report = excluded.period_of_report,
             raw_path = excluded.raw_path,
+            raw_sha256 = excluded.raw_sha256,
             clean_text_path = excluded.clean_text_path,
             updated_at = CURRENT_TIMESTAMP
         """,
@@ -110,6 +119,7 @@ def upsert_filing(connection: sqlite3.Connection, metadata: FilingMetadata) -> i
             metadata.filing_date,
             metadata.period_of_report,
             metadata.raw_path,
+            metadata.raw_sha256,
             metadata.clean_text_path,
         ),
     )
