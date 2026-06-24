@@ -1,6 +1,12 @@
 import uuid
 
-from vector_store import make_vector_id
+from qdrant_client import QdrantClient, models
+
+from vector_store import (
+    delete_obsolete_points,
+    fetch_vector_ids_for_accession,
+    make_vector_id,
+)
 
 
 def test_make_vector_id_is_stable_and_qdrant_compatible():
@@ -11,3 +17,69 @@ def test_make_vector_id_is_stable_and_qdrant_compatible():
     assert first == second
     assert first != different
     assert str(uuid.UUID(first)) == first
+
+
+def test_delete_obsolete_points_only_removes_stale_ids_for_accession(tmp_path):
+    client = QdrantClient(path=str(tmp_path / "qdrant"))
+    collection_name = "test_chunks"
+    accession = "0001045810-26-000021"
+    current_id = make_vector_id(accession, "1A", 0)
+    stale_id = make_vector_id(accession, "1A", 1)
+    unrelated_id = make_vector_id("0000000000-26-000001", "1A", 0)
+
+    client.create_collection(
+        collection_name=collection_name,
+        vectors_config=models.VectorParams(size=2, distance=models.Distance.COSINE),
+    )
+    client.upsert(
+        collection_name=collection_name,
+        points=[
+            models.PointStruct(
+                id=current_id,
+                vector=[1.0, 0.0],
+                payload={"accession_number": accession},
+            ),
+            models.PointStruct(
+                id=stale_id,
+                vector=[0.9, 0.1],
+                payload={"accession_number": accession},
+            ),
+            models.PointStruct(
+                id=unrelated_id,
+                vector=[0.0, 1.0],
+                payload={"accession_number": "0000000000-26-000001"},
+            ),
+        ],
+        wait=True,
+    )
+
+    try:
+        existing = fetch_vector_ids_for_accession(
+            client,
+            collection_name=collection_name,
+            accession_number=accession,
+            page_size=1,
+        )
+        deleted = delete_obsolete_points(
+            client,
+            collection_name=collection_name,
+            accession_number=accession,
+            current_vector_ids={current_id},
+        )
+        remaining = fetch_vector_ids_for_accession(
+            client,
+            collection_name=collection_name,
+            accession_number=accession,
+        )
+        unrelated = fetch_vector_ids_for_accession(
+            client,
+            collection_name=collection_name,
+            accession_number="0000000000-26-000001",
+        )
+    finally:
+        client.close()
+
+    assert existing == {current_id, stale_id}
+    assert deleted == {stale_id}
+    assert remaining == {current_id}
+    assert unrelated == {unrelated_id}

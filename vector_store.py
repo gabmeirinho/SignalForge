@@ -1,4 +1,5 @@
 import uuid
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -63,44 +64,119 @@ def index_chunks(
     )
 
     indexed = []
-    for start in range(0, len(rows), batch_size):
-        batch = rows[start : start + batch_size]
-        points = []
+    rows_by_accession = defaultdict(list)
+    for row in rows:
+        rows_by_accession[row["accession_number"]].append(row)
 
-        for row in batch:
-            vector_id = make_vector_id(
-                accession_number=row["accession_number"],
-                section_id=row["section_id"],
-                chunk_index=row["chunk_index"],
-            )
-            payload = {
-                "chunk_id": row["chunk_id"],
-                "filing_id": row["filing_id"],
-                "accession_number": row["accession_number"],
-                "ticker": row["ticker"],
-                "cik": row["cik"],
-                "company_name": row["company_name"],
-                "form_type": row["form_type"],
-                "filing_date": row["filing_date"],
-                "period_of_report": row["period_of_report"],
-                "section_id": row["section_id"],
-                "section_title": row["section_title"],
-                "chunk_index": row["chunk_index"],
-                "text": row["text"],
-                "embedding_model": embedding_model,
-            }
-            points.append(
-                models.PointStruct(
-                    id=vector_id,
-                    vector=models.Document(text=row["text"], model=embedding_model),
-                    payload=payload,
+    for accession_number, filing_rows in rows_by_accession.items():
+        current_vector_ids = set()
+
+        for start in range(0, len(filing_rows), batch_size):
+            batch = filing_rows[start : start + batch_size]
+            points = []
+
+            for row in batch:
+                vector_id = make_vector_id(
+                    accession_number=accession_number,
+                    section_id=row["section_id"],
+                    chunk_index=row["chunk_index"],
                 )
-            )
-            indexed.append((int(row["chunk_id"]), vector_id))
+                payload = {
+                    "chunk_id": row["chunk_id"],
+                    "filing_id": row["filing_id"],
+                    "accession_number": accession_number,
+                    "ticker": row["ticker"],
+                    "cik": row["cik"],
+                    "company_name": row["company_name"],
+                    "form_type": row["form_type"],
+                    "filing_date": row["filing_date"],
+                    "period_of_report": row["period_of_report"],
+                    "section_id": row["section_id"],
+                    "section_title": row["section_title"],
+                    "chunk_index": row["chunk_index"],
+                    "text": row["text"],
+                    "embedding_model": embedding_model,
+                }
+                points.append(
+                    models.PointStruct(
+                        id=vector_id,
+                        vector=models.Document(text=row["text"], model=embedding_model),
+                        payload=payload,
+                    )
+                )
+                current_vector_ids.add(vector_id)
+                indexed.append((int(row["chunk_id"]), vector_id))
 
-        client.upsert(collection_name=collection_name, points=points, wait=True)
+            client.upsert(collection_name=collection_name, points=points, wait=True)
+
+        delete_obsolete_points(
+            client,
+            collection_name=collection_name,
+            accession_number=accession_number,
+            current_vector_ids=current_vector_ids,
+        )
 
     return indexed
+
+
+def delete_obsolete_points(
+    client: QdrantClient,
+    *,
+    collection_name: str,
+    accession_number: str,
+    current_vector_ids: set[str],
+) -> set[str]:
+    existing_vector_ids = fetch_vector_ids_for_accession(
+        client,
+        collection_name=collection_name,
+        accession_number=accession_number,
+    )
+    obsolete_vector_ids = existing_vector_ids - current_vector_ids
+
+    if obsolete_vector_ids:
+        client.delete(
+            collection_name=collection_name,
+            points_selector=models.PointIdsList(points=sorted(obsolete_vector_ids)),
+            wait=True,
+        )
+
+    return obsolete_vector_ids
+
+
+def fetch_vector_ids_for_accession(
+    client: QdrantClient,
+    *,
+    collection_name: str,
+    accession_number: str,
+    page_size: int = 256,
+) -> set[str]:
+    accession_filter = models.Filter(
+        must=[
+            models.FieldCondition(
+                key="accession_number",
+                match=models.MatchValue(value=accession_number),
+            )
+        ]
+    )
+    vector_ids = set()
+    offset = None
+
+    while True:
+        records, next_offset = client.scroll(
+            collection_name=collection_name,
+            scroll_filter=accession_filter,
+            limit=page_size,
+            offset=offset,
+            with_payload=False,
+            with_vectors=False,
+        )
+        vector_ids.update(str(record.id) for record in records)
+
+        if next_offset is None:
+            break
+        offset = next_offset
+
+    return vector_ids
 
 
 def semantic_search(
