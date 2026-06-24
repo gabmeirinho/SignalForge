@@ -85,3 +85,23 @@ Discussion paragraph two.
     assert {chunk.section_id for chunk in chunks} == {"1", "1A"}
     assert all(chunk.section_title for chunk in chunks)
     assert all(chunk.chunk_index >= 0 for chunk in chunks)
+
+
+def test_split_10k_sections_retains_custom_target_sections():
+    text = """
+Item 2. Properties
+Property body paragraph. Property body paragraph. Property body paragraph.
+
+Item 3. Legal Proceedings
+Legal body paragraph. Legal body paragraph. Legal body paragraph.
+"""
+
+    sections = split_10k_sections(
+        text,
+        target_sections=("2",),
+        min_section_chars=20,
+    )
+
+    assert [section.section_id for section in sections] == ["2"]
+    assert sections[0].title == "Properties"
+    assert "Property body paragraph" in sections[0].text

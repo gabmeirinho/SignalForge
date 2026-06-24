@@ -59,7 +59,7 @@ def split_10k_sections(
         title = _normalize_section_title(section_id, heading.group("title"))
         sections.append(FilingSection(section_id=section_id, title=title, text=section_text))
 
-    return _dedupe_sections_keep_longest(sections)
+    return _dedupe_sections_keep_longest(sections, section_order=target_sections)
 
 
 def chunk_sections(
@@ -122,7 +122,11 @@ def _normalize_section_title(section_id: str, raw_title: str) -> str:
     return title
 
 
-def _dedupe_sections_keep_longest(sections: list[FilingSection]) -> list[FilingSection]:
+def _dedupe_sections_keep_longest(
+    sections: list[FilingSection],
+    *,
+    section_order: tuple[str, ...],
+) -> list[FilingSection]:
     longest_by_id = {}
 
     for section in sections:
@@ -132,7 +136,7 @@ def _dedupe_sections_keep_longest(sections: list[FilingSection]) -> list[FilingS
 
     return [
         longest_by_id[section_id]
-        for section_id in DEFAULT_TARGET_SECTIONS
+        for section_id in section_order
         if section_id in longest_by_id
     ]
 
