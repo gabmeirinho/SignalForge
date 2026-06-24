@@ -2,7 +2,7 @@ import uuid
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Callable, Iterable
 
 from qdrant_client import QdrantClient, models
 
@@ -55,6 +55,7 @@ def index_chunks(
     collection_name: str = DEFAULT_COLLECTION,
     embedding_model: str = DEFAULT_EMBEDDING_MODEL,
     batch_size: int = 16,
+    progress_callback: Callable[[int], None] | None = None,
 ) -> list[tuple[int, str]]:
     rows = list(rows)
     ensure_collection(
@@ -70,6 +71,7 @@ def index_chunks(
 
     for accession_number, filing_rows in rows_by_accession.items():
         current_vector_ids = set()
+        indexed_count = 0
 
         for start in range(0, len(filing_rows), batch_size):
             batch = filing_rows[start : start + batch_size]
@@ -107,7 +109,14 @@ def index_chunks(
                 current_vector_ids.add(vector_id)
                 indexed.append((int(row["chunk_id"]), vector_id))
 
-            client.upsert(collection_name=collection_name, points=points, wait=True)
+            result = client.upsert(collection_name=collection_name, points=points, wait=True)
+            if result.status != models.UpdateStatus.COMPLETED:
+                raise RuntimeError(
+                    f"Qdrant upsert did not complete for {accession_number}: {result.status}"
+                )
+            indexed_count += len(points)
+            if progress_callback:
+                progress_callback(indexed_count)
 
         delete_obsolete_points(
             client,
@@ -115,6 +124,16 @@ def index_chunks(
             accession_number=accession_number,
             current_vector_ids=current_vector_ids,
         )
+        stored_vector_ids = fetch_vector_ids_for_accession(
+            client,
+            collection_name=collection_name,
+            accession_number=accession_number,
+        )
+        if stored_vector_ids != current_vector_ids:
+            raise RuntimeError(
+                f"Qdrant verification failed for {accession_number}: "
+                f"expected {len(current_vector_ids)} points, found {len(stored_vector_ids)}"
+            )
 
     return indexed
 
@@ -188,6 +207,7 @@ def semantic_search(
     limit: int = 5,
     ticker: str | None = None,
     section_id: str | None = None,
+    accession_numbers: list[str] | None = None,
 ) -> list[SearchResult]:
     client.set_model(embedding_model)
     conditions = []
@@ -199,6 +219,15 @@ def semantic_search(
     if section_id:
         conditions.append(
             models.FieldCondition(key="section_id", match=models.MatchValue(value=section_id.upper()))
+        )
+    if accession_numbers is not None:
+        if not accession_numbers:
+            return []
+        conditions.append(
+            models.FieldCondition(
+                key="accession_number",
+                match=models.MatchAny(any=accession_numbers),
+            )
         )
 
     query_filter = models.Filter(must=conditions) if conditions else None

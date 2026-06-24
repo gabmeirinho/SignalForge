@@ -1,10 +1,13 @@
 import argparse
+from collections import defaultdict
 
 from storage import (
     connect_database,
     initialize_database,
     load_chunks_for_vector_index,
     record_chunk_embeddings,
+    set_embedding_run_status,
+    update_embedding_run_progress,
 )
 from vector_store import (
     DEFAULT_COLLECTION,
@@ -23,26 +26,79 @@ def main() -> None:
         if not rows:
             raise RuntimeError("No chunks found in SQLite. Run ingest.py first.")
 
+        rows_by_filing = defaultdict(list)
+        for row in rows:
+            rows_by_filing[int(row["filing_id"])].append(row)
+
         client = create_qdrant_client(args.qdrant_path)
+        total_indexed = 0
         try:
-            indexed = index_chunks(
-                client,
-                rows=rows,
-                collection_name=args.collection,
-                embedding_model=args.model,
-                batch_size=args.batch_size,
-            )
+            for filing_id, filing_rows in rows_by_filing.items():
+                expected_count = len(filing_rows)
+                indexed_count = 0
+                set_embedding_run_status(
+                    connection,
+                    filing_id=filing_id,
+                    embedding_model=args.model,
+                    vector_collection=args.collection,
+                    status="indexing",
+                    expected_point_count=expected_count,
+                )
+
+                def update_progress(count: int) -> None:
+                    nonlocal indexed_count
+                    indexed_count = count
+                    update_embedding_run_progress(
+                        connection,
+                        filing_id=filing_id,
+                        embedding_model=args.model,
+                        vector_collection=args.collection,
+                        indexed_point_count=count,
+                    )
+
+                try:
+                    indexed = index_chunks(
+                        client,
+                        rows=filing_rows,
+                        collection_name=args.collection,
+                        embedding_model=args.model,
+                        batch_size=args.batch_size,
+                        progress_callback=update_progress,
+                    )
+                    record_chunk_embeddings(
+                        connection,
+                        chunk_vector_ids=indexed,
+                        embedding_model=args.model,
+                        vector_collection=args.collection,
+                    )
+                except Exception as error:
+                    set_embedding_run_status(
+                        connection,
+                        filing_id=filing_id,
+                        embedding_model=args.model,
+                        vector_collection=args.collection,
+                        status="failed",
+                        expected_point_count=expected_count,
+                        indexed_point_count=indexed_count,
+                        error_message=str(error),
+                    )
+                    raise
+                else:
+                    set_embedding_run_status(
+                        connection,
+                        filing_id=filing_id,
+                        embedding_model=args.model,
+                        vector_collection=args.collection,
+                        status="ready",
+                        expected_point_count=expected_count,
+                        indexed_point_count=expected_count,
+                    )
+                    total_indexed += len(indexed)
         finally:
             client.close()
-        record_chunk_embeddings(
-            connection,
-            chunk_vector_ids=indexed,
-            embedding_model=args.model,
-            vector_collection=args.collection,
-        )
 
     print(
-        f"Indexed {len(indexed)} chunks into Qdrant collection "
+        f"Indexed {total_indexed} chunks into Qdrant collection "
         f"{args.collection!r} using {args.model!r}."
     )
 

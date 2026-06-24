@@ -1,5 +1,6 @@
 import argparse
 
+from storage import connect_database, get_ready_accession_numbers, initialize_database
 from vector_store import (
     DEFAULT_COLLECTION,
     DEFAULT_EMBEDDING_MODEL,
@@ -10,6 +11,21 @@ from vector_store import (
 
 def main() -> None:
     args = parse_args()
+    with connect_database(args.db_path) as connection:
+        initialize_database(connection)
+        ready_accessions = get_ready_accession_numbers(
+            connection,
+            embedding_model=args.model,
+            vector_collection=args.collection,
+            ticker=args.ticker,
+        )
+
+    if not ready_accessions:
+        scope = f" for ticker {args.ticker.upper()}" if args.ticker else ""
+        raise RuntimeError(
+            f"No ready vector index exists{scope}. Run vectorize.py or retry a failed run."
+        )
+
     client = create_qdrant_client(args.qdrant_path)
     try:
         results = semantic_search(
@@ -20,6 +36,7 @@ def main() -> None:
             limit=args.limit,
             ticker=args.ticker,
             section_id=args.section,
+            accession_numbers=ready_accessions,
         )
     finally:
         client.close()
@@ -38,6 +55,7 @@ def main() -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run semantic search over SEC filing chunks.")
     parser.add_argument("query")
+    parser.add_argument("--db-path", default="data/signalforge.sqlite3")
     parser.add_argument("--qdrant-path", default="data/qdrant")
     parser.add_argument("--collection", default=DEFAULT_COLLECTION)
     parser.add_argument("--model", default=DEFAULT_EMBEDDING_MODEL)
