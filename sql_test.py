@@ -1,10 +1,19 @@
 import sqlite3
 
-# conn = sqlite3.connect("data/signalforge.sqlite3")
-# conn.row_factory = sqlite3.Row
+conn = sqlite3.connect("data/signalforge.sqlite3")
+conn.row_factory = sqlite3.Row
+
+# tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+# for table in tables:
+#     print(table['name'])
 
 # for row in conn.execute("SELECT * FROM filings"):
 #     print(dict(row))
+
+for row in conn.execute("SELECT * FROM embedding_runs"):
+    print(dict(row))
+
+
 
 # count = conn.execute("SELECT COUNT(*) FROM filings").fetchone()[0]
 # print(count)
@@ -32,13 +41,13 @@ import sqlite3
 #                         """):
 #     print(dict(row))
 
-conn = sqlite3.connect("data/qdrant/collection/sec_chunks/storage.sqlite")
-conn.row_factory = sqlite3.Row
+# conn = sqlite3.connect("data/qdrant/collection/sec_chunks/storage.sqlite")
+# conn.row_factory = sqlite3.Row
 
-tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
-for table in tables:
-    print(table['name'])
+# tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+# for table in tables:
+#     print(table['name'])
 
-cursor = conn.execute("SELECT * FROM points LIMIT 1")
-column_names = [desc[0] for desc in cursor.description]
-print(column_names)
+# cursor = conn.execute("SELECT * FROM points LIMIT 1")
+# column_names = [desc[0] for desc in cursor.description]
+# print(column_names)
