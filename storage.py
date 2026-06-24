@@ -1,5 +1,6 @@
 import sqlite3
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sections import TextChunk
@@ -58,6 +59,16 @@ def initialize_database(connection: sqlite3.Connection) -> None:
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (filing_id) REFERENCES filings(id) ON DELETE CASCADE,
             UNIQUE (filing_id, section_id, chunk_index)
+        );
+
+        CREATE TABLE IF NOT EXISTS chunk_embeddings (
+            chunk_id INTEGER NOT NULL,
+            embedding_model TEXT NOT NULL,
+            vector_collection TEXT NOT NULL,
+            vector_id TEXT NOT NULL,
+            embedded_at TEXT NOT NULL,
+            PRIMARY KEY (chunk_id, embedding_model, vector_collection),
+            FOREIGN KEY (chunk_id) REFERENCES chunks(id) ON DELETE CASCADE
         );
         """
     )
@@ -141,6 +152,60 @@ def replace_filing_chunks(
                 len(chunk.text),
             )
             for chunk in chunks
+        ],
+    )
+    connection.commit()
+
+
+def load_chunks_for_vector_index(connection: sqlite3.Connection) -> list[sqlite3.Row]:
+    return connection.execute(
+        """
+        SELECT
+            c.id AS chunk_id,
+            c.filing_id,
+            c.section_id,
+            c.section_title,
+            c.chunk_index,
+            c.text,
+            f.accession_number,
+            f.ticker,
+            f.cik,
+            f.company_name,
+            f.form_type,
+            f.filing_date,
+            f.period_of_report
+        FROM chunks AS c
+        JOIN filings AS f ON f.id = c.filing_id
+        ORDER BY f.id, c.section_id, c.chunk_index
+        """
+    ).fetchall()
+
+
+def record_chunk_embeddings(
+    connection: sqlite3.Connection,
+    *,
+    chunk_vector_ids: list[tuple[int, str]],
+    embedding_model: str,
+    vector_collection: str,
+) -> None:
+    embedded_at = datetime.now(UTC).isoformat()
+    connection.executemany(
+        """
+        INSERT INTO chunk_embeddings (
+            chunk_id,
+            embedding_model,
+            vector_collection,
+            vector_id,
+            embedded_at
+        )
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(chunk_id, embedding_model, vector_collection) DO UPDATE SET
+            vector_id = excluded.vector_id,
+            embedded_at = excluded.embedded_at
+        """,
+        [
+            (chunk_id, embedding_model, vector_collection, vector_id, embedded_at)
+            for chunk_id, vector_id in chunk_vector_ids
         ],
     )
     connection.commit()

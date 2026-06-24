@@ -45,6 +45,7 @@ data/external/
 *.sqlite3
 chroma/
 qdrant_storage/
+data/qdrant/
 
 # Generated data exports
 *.csv
