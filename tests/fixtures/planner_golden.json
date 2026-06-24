@@ -1,0 +1,155 @@
+[
+  {
+    "id": "latest_risk_factors",
+    "question": "What are NVIDIA's latest risk factors?",
+    "context": {
+      "available_tickers": ["NVDA"],
+      "available_sections": ["1", "1A", "7", "7A"],
+      "filing_years_by_ticker": {
+        "NVDA": [2026]
+      }
+    },
+    "expected": {
+      "tickers": ["NVDA"],
+      "sections": ["1A"],
+      "time_scope": "latest",
+      "intent": "summary"
+    }
+  },
+  {
+    "id": "business_overview",
+    "question": "What does NVIDIA's business do?",
+    "context": {
+      "available_tickers": ["NVDA"],
+      "available_sections": ["1", "1A", "7", "7A"],
+      "filing_years_by_ticker": {
+        "NVDA": [2026]
+      }
+    },
+    "expected": {
+      "tickers": ["NVDA"],
+      "sections": ["1"],
+      "time_scope": "latest",
+      "intent": "summary"
+    }
+  },
+  {
+    "id": "management_discussion",
+    "question": "Summarize NVIDIA's financial performance and management outlook.",
+    "context": {
+      "available_tickers": ["NVDA"],
+      "available_sections": ["1", "1A", "7", "7A"],
+      "filing_years_by_ticker": {
+        "NVDA": [2026]
+      }
+    },
+    "expected": {
+      "tickers": ["NVDA"],
+      "sections": ["7"],
+      "time_scope": "latest",
+      "intent": "summary"
+    }
+  },
+  {
+    "id": "market_risk",
+    "question": "What market risks does NVIDIA report?",
+    "context": {
+      "available_tickers": ["NVDA"],
+      "available_sections": ["1", "1A", "7", "7A"],
+      "filing_years_by_ticker": {
+        "NVDA": [2026]
+      }
+    },
+    "expected": {
+      "tickers": ["NVDA"],
+      "sections": ["7A"],
+      "time_scope": "latest",
+      "intent": "summary"
+    }
+  },
+  {
+    "id": "financial_fact",
+    "question": "What revenue did NVIDIA report?",
+    "context": {
+      "available_tickers": ["NVDA"],
+      "available_sections": ["1", "1A", "7", "7A"],
+      "filing_years_by_ticker": {
+        "NVDA": [2026]
+      }
+    },
+    "expected": {
+      "tickers": ["NVDA"],
+      "sections": ["7"],
+      "time_scope": "latest",
+      "intent": "fact"
+    }
+  },
+  {
+    "id": "unavailable_company",
+    "question": "Summarize AMD's latest risks.",
+    "context": {
+      "available_tickers": ["NVDA"],
+      "available_sections": ["1", "1A", "7", "7A"],
+      "filing_years_by_ticker": {
+        "NVDA": [2026]
+      }
+    },
+    "expected": {
+      "tickers": [],
+      "sections": ["1A"],
+      "time_scope": "latest",
+      "intent": "summary"
+    }
+  },
+  {
+    "id": "unavailable_company_comparison",
+    "question": "Compare NVIDIA and AMD's latest risk factors.",
+    "context": {
+      "available_tickers": ["NVDA"],
+      "available_sections": ["1", "1A", "7", "7A"],
+      "filing_years_by_ticker": {
+        "NVDA": [2026]
+      }
+    },
+    "expected": {
+      "tickers": ["NVDA"],
+      "sections": ["1A"],
+      "time_scope": "latest",
+      "intent": "comparison"
+    }
+  },
+  {
+    "id": "unavailable_previous_period",
+    "question": "How did NVIDIA's revenue change from the previous filing?",
+    "context": {
+      "available_tickers": ["NVDA"],
+      "available_sections": ["1", "1A", "7", "7A"],
+      "filing_years_by_ticker": {
+        "NVDA": [2026]
+      }
+    },
+    "expected": {
+      "tickers": ["NVDA"],
+      "sections": ["7"],
+      "time_scope": "latest",
+      "intent": "comparison"
+    }
+  },
+  {
+    "id": "unavailable_historical_trend",
+    "question": "How have NVIDIA's risk factors changed over time?",
+    "context": {
+      "available_tickers": ["NVDA"],
+      "available_sections": ["1", "1A", "7", "7A"],
+      "filing_years_by_ticker": {
+        "NVDA": [2026]
+      }
+    },
+    "expected": {
+      "tickers": ["NVDA"],
+      "sections": ["1A"],
+      "time_scope": "latest",
+      "intent": "trend"
+    }
+  }
+]

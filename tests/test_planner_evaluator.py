@@ -1,0 +1,64 @@
+import json
+from pathlib import Path
+
+import pytest
+
+from evaluate_planner import compare_plan
+
+
+DATASET_PATH = Path(__file__).parent / "fixtures" / "planner_golden.json"
+
+
+def test_golden_dataset_has_unique_valid_cases():
+    cases = json.loads(DATASET_PATH.read_text())
+
+    assert cases
+    assert len({case["id"] for case in cases}) == len(cases)
+    for case in cases:
+        assert case["question"].strip()
+        assert case["context"] == {
+            "available_tickers": ["NVDA"],
+            "available_sections": ["1", "1A", "7", "7A"],
+            "filing_years_by_ticker": {"NVDA": [2026]},
+        }
+        assert set(case["expected"]) == {
+            "tickers",
+            "sections",
+            "time_scope",
+            "intent",
+        }
+
+
+def test_compare_plan_ignores_ticker_and_section_order():
+    actual = {
+        "tickers": ["NVDA", "AMD"],
+        "sections": ["7", "1A"],
+        "time_scope": "latest",
+        "intent": "comparison",
+    }
+    expected = {
+        "tickers": ["AMD", "NVDA"],
+        "sections": ["1A", "7"],
+        "time_scope": "latest",
+        "intent": "comparison",
+    }
+
+    assert compare_plan(actual, expected) == []
+
+
+@pytest.mark.parametrize(
+    ("field", "actual_value", "expected_value"),
+    [
+        ("tickers", ["AMD"], ["NVDA"]),
+        ("sections", ["1"], ["1A"]),
+        ("time_scope", "latest", "all_available"),
+        ("intent", "summary", "trend"),
+    ],
+)
+def test_compare_plan_reports_mismatches(field, actual_value, expected_value):
+    actual = {field: actual_value}
+    expected = {field: expected_value}
+
+    assert compare_plan(actual, expected) == [
+        f"{field}: expected {expected_value!r}, got {actual_value!r}"
+    ]

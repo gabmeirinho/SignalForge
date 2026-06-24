@@ -353,6 +353,20 @@ def get_ready_accession_numbers(
     ]
 
 
+def load_planner_metadata(connection: sqlite3.Connection) -> list[sqlite3.Row]:
+    return connection.execute(
+        """
+        SELECT DISTINCT
+            f.ticker,
+            f.filing_date,
+            c.section_id
+        FROM filings AS f
+        JOIN chunks AS c ON c.filing_id = f.id
+        ORDER BY f.ticker, f.filing_date, c.section_id
+        """
+    ).fetchall()
+
+
 def update_embedding_run_progress(
     connection: sqlite3.Connection,
     *,
