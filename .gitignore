@@ -34,10 +34,7 @@ logs/
 
 # SEC downloads and generated pipeline data
 sec-edgar-filings/
-data/raw/
-data/processed/
-data/interim/
-data/external/
+data/
 
 # Local databases and vector stores
 *.db
