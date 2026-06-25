@@ -98,7 +98,7 @@ def ingest_downloaded_filing(
         text=clean_text,
     )
 
-    sections = extract_10k_sections(primary_document.text, clean_text=clean_text)
+    sections = extract_10k_sections(primary_document.text)
     chunks = chunk_sections(sections, chunk_size=chunk_size, overlap=overlap)
 
     metadata = FilingMetadata(

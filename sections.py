@@ -7,7 +7,6 @@ from edgar.documents import HTMLParser, ParserConfig
 from cross_reference import extract_cross_referenced_items
 
 
-SECTION_ORDER = ("1", "1A", "1B", "2", "3", "7", "7A", "8")
 DEFAULT_TARGET_SECTIONS = ("1", "1A", "7", "7A")
 LOGGER = logging.getLogger(__name__)
 
@@ -21,12 +20,6 @@ SECTION_TITLES = {
     "7A": "Quantitative and Qualitative Disclosures About Market Risk",
     "8": "Financial Statements and Supplementary Data",
 }
-
-ITEM_HEADING_RE = re.compile(
-    r"(?im)^[ \t]*Item[ \t]+(?P<section>1A|1B|7A|1|2|3|7|8)\.?"
-    r"(?![A-Z0-9])[ \t]*(?P<title>[^\n]{0,160})$"
-)
-
 
 @dataclass(frozen=True)
 class FilingSection:
@@ -46,11 +39,10 @@ class TextChunk:
 def extract_10k_sections(
     html: str,
     *,
-    clean_text: str,
     target_sections: tuple[str, ...] = DEFAULT_TARGET_SECTIONS,
     min_section_chars: int = 1_000,
 ) -> list[FilingSection]:
-    """Use EdgarTools normally and defer to a filing-provided index when present."""
+    """Use EdgarTools and override it with a filing-provided index when present."""
     try:
         edgar_sections = extract_10k_sections_with_edgartools(
             html,
@@ -58,7 +50,7 @@ def extract_10k_sections(
             min_section_chars=min_section_chars,
         )
     except Exception:
-        LOGGER.exception("EdgarTools section extraction failed; using fallback parsers")
+        LOGGER.exception("EdgarTools section extraction failed")
         edgar_sections = []
 
     try:
@@ -68,27 +60,13 @@ def extract_10k_sections(
             min_section_chars=min_section_chars,
         )
     except Exception:
-        LOGGER.exception("Cross-reference index extraction failed; using text fallback")
+        LOGGER.exception("Cross-reference index extraction failed")
         indexed_sections = []
 
     sections_by_id = {section.section_id: section for section in edgar_sections}
     sections_by_id.update(
         {section.section_id: section for section in indexed_sections}
     )
-    missing_sections = tuple(
-        section_id for section_id in target_sections if section_id not in sections_by_id
-    )
-
-    if missing_sections:
-        fallback_sections = split_10k_sections(
-            clean_text,
-            target_sections=missing_sections,
-            min_section_chars=min_section_chars,
-        )
-        sections_by_id.update(
-            {section.section_id: section for section in fallback_sections}
-        )
-
     return [
         sections_by_id[section_id]
         for section_id in target_sections
@@ -149,31 +127,6 @@ def extract_10k_sections_with_edgartools(
     return sections
 
 
-def split_10k_sections(
-    text: str,
-    target_sections: tuple[str, ...] = DEFAULT_TARGET_SECTIONS,
-    min_section_chars: int = 1_000,
-) -> list[FilingSection]:
-    headings = list(ITEM_HEADING_RE.finditer(text))
-    sections = []
-
-    for index, heading in enumerate(headings):
-        section_id = heading.group("section").upper()
-        if section_id not in target_sections:
-            continue
-
-        next_start = headings[index + 1].start() if index + 1 < len(headings) else len(text)
-        section_text = text[heading.end() : next_start].strip()
-
-        if len(section_text) < min_section_chars:
-            continue
-
-        title = _normalize_section_title(section_id, heading.group("title"))
-        sections.append(FilingSection(section_id=section_id, title=title, text=section_text))
-
-    return _dedupe_sections_keep_longest(sections, section_order=target_sections)
-
-
 def chunk_sections(
     sections: list[FilingSection],
     chunk_size: int = 4_000,
@@ -225,32 +178,6 @@ def chunk_text_by_paragraph(text: str, chunk_size: int = 4_000, overlap: int = 5
         chunks.extend(_split_oversized_text(current, chunk_size, overlap))
 
     return chunks
-
-
-def _normalize_section_title(section_id: str, raw_title: str) -> str:
-    title = re.sub(r"\s+", " ", raw_title).strip(" .")
-    if not title:
-        return SECTION_TITLES[section_id]
-    return title
-
-
-def _dedupe_sections_keep_longest(
-    sections: list[FilingSection],
-    *,
-    section_order: tuple[str, ...],
-) -> list[FilingSection]:
-    longest_by_id = {}
-
-    for section in sections:
-        existing = longest_by_id.get(section.section_id)
-        if existing is None or len(section.text) > len(existing.text):
-            longest_by_id[section.section_id] = section
-
-    return [
-        longest_by_id[section_id]
-        for section_id in section_order
-        if section_id in longest_by_id
-    ]
 
 
 def _split_oversized_text(text: str, chunk_size: int, overlap: int) -> list[str]:
