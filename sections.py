@@ -1,9 +1,15 @@
+import logging
 import re
 from dataclasses import dataclass
+
+from edgar.documents import HTMLParser, ParserConfig
+
+from cross_reference import extract_cross_referenced_items
 
 
 SECTION_ORDER = ("1", "1A", "1B", "2", "3", "7", "7A", "8")
 DEFAULT_TARGET_SECTIONS = ("1", "1A", "7", "7A")
+LOGGER = logging.getLogger(__name__)
 
 SECTION_TITLES = {
     "1": "Business",
@@ -35,6 +41,112 @@ class TextChunk:
     section_title: str
     chunk_index: int
     text: str
+
+
+def extract_10k_sections(
+    html: str,
+    *,
+    clean_text: str,
+    target_sections: tuple[str, ...] = DEFAULT_TARGET_SECTIONS,
+    min_section_chars: int = 1_000,
+) -> list[FilingSection]:
+    """Use EdgarTools normally and defer to a filing-provided index when present."""
+    try:
+        edgar_sections = extract_10k_sections_with_edgartools(
+            html,
+            target_sections=target_sections,
+            min_section_chars=min_section_chars,
+        )
+    except Exception:
+        LOGGER.exception("EdgarTools section extraction failed; using fallback parsers")
+        edgar_sections = []
+
+    try:
+        indexed_sections = extract_10k_sections_from_cross_reference_index(
+            html,
+            target_sections=target_sections,
+            min_section_chars=min_section_chars,
+        )
+    except Exception:
+        LOGGER.exception("Cross-reference index extraction failed; using text fallback")
+        indexed_sections = []
+
+    sections_by_id = {section.section_id: section for section in edgar_sections}
+    sections_by_id.update(
+        {section.section_id: section for section in indexed_sections}
+    )
+    missing_sections = tuple(
+        section_id for section_id in target_sections if section_id not in sections_by_id
+    )
+
+    if missing_sections:
+        fallback_sections = split_10k_sections(
+            clean_text,
+            target_sections=missing_sections,
+            min_section_chars=min_section_chars,
+        )
+        sections_by_id.update(
+            {section.section_id: section for section in fallback_sections}
+        )
+
+    return [
+        sections_by_id[section_id]
+        for section_id in target_sections
+        if section_id in sections_by_id
+    ]
+
+
+def extract_10k_sections_from_cross_reference_index(
+    html: str,
+    *,
+    target_sections: tuple[str, ...] = DEFAULT_TARGET_SECTIONS,
+    min_section_chars: int = 1_000,
+) -> list[FilingSection]:
+    """Adapt the cross-reference fallback output to the pipeline section model."""
+    indexed_items = extract_cross_referenced_items(
+        html,
+        target_items=target_sections,
+        min_item_chars=min_section_chars,
+    )
+    return [
+        FilingSection(
+            section_id=section_id,
+            title=SECTION_TITLES.get(section_id, f"Item {section_id}"),
+            text=indexed_items[section_id],
+        )
+        for section_id in target_sections
+        if section_id in indexed_items
+    ]
+
+
+def extract_10k_sections_with_edgartools(
+    html: str,
+    *,
+    target_sections: tuple[str, ...] = DEFAULT_TARGET_SECTIONS,
+    min_section_chars: int = 1_000,
+) -> list[FilingSection]:
+    """Extract supported 10-K items from filing HTML using EdgarTools."""
+    document = HTMLParser(ParserConfig(form="10-K")).parse(html)
+    sections = []
+
+    for section_id in target_sections:
+        edgar_section = document.sections.get_item(section_id)
+        if edgar_section is None:
+            continue
+
+        section_text = edgar_section.text().strip()
+        if len(section_text) < min_section_chars:
+            continue
+
+        sections.append(
+            FilingSection(
+                section_id=section_id,
+                title=SECTION_TITLES[section_id],
+                text=section_text,
+            )
+        )
+
+    return sections
 
 
 def split_10k_sections(

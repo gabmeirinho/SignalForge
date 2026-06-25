@@ -3,15 +3,26 @@ import sqlite3
 conn = sqlite3.connect("data/signalforge.sqlite3")
 conn.row_factory = sqlite3.Row
 
-# tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
-# for table in tables:
-#     print(table['name'])
+tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+for table in tables:
+    print(table['name'])
 
-# for row in conn.execute("SELECT * FROM filings"):
-#     print(dict(row))
+rows = conn.execute("""
+                    SELECT f.ticker, COUNT(c.id) AS chunk_count
+                    FROM filings as f
+                    LEFT JOIN chunks AS c ON c.filing_id = f.id
+                    GROUP BY f.ticker
+                    ORDER BY chunk_count DESC
+""").fetchall()
 
-for row in conn.execute("SELECT * FROM embedding_runs"):
+for row in rows:
     print(dict(row))
+
+for row in conn.execute("SELECT * FROM filings WHERE ticker='INTC'"):
+    print(dict(row))
+
+# for row in conn.execute("SELECT * FROM embedding_runs"):
+#     print(dict(row))
 
 
 
