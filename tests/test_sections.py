@@ -2,46 +2,12 @@ import pytest
 
 import sections as sections_module
 from sections import (
+    FilingSection,
     chunk_sections,
     chunk_text_by_paragraph,
     extract_10k_sections,
     extract_10k_sections_from_cross_reference_index,
-    split_10k_sections,
 )
-
-
-def test_split_10k_sections_discards_table_of_contents_and_keeps_body_sections():
-    text = """
-Table of Contents
-
-Item 1. Business
-Item 1A. Risk Factors
-Item 7. Management's Discussion and Analysis
-Item 7A. Quantitative and Qualitative Disclosures About Market Risk
-
-Item 1. Business
-Business body paragraph. Business body paragraph. Business body paragraph.
-
-Item 1A. Risk Factors
-Risk body paragraph. Risk body paragraph. Risk body paragraph.
-
-Item 7. Management's Discussion and Analysis
-MD&A body paragraph. MD&A body paragraph. MD&A body paragraph.
-
-Item 7A. Quantitative and Qualitative Disclosures About Market Risk
-Market risk body paragraph. Market risk body paragraph. Market risk body paragraph.
-
-Item 8. Financial Statements
-"""
-
-    sections = split_10k_sections(text, min_section_chars=20)
-
-    assert [section.section_id for section in sections] == ["1", "1A", "7", "7A"]
-    assert sections[0].title == "Business"
-    assert "Business body paragraph" in sections[0].text
-    assert "Risk body paragraph" in sections[1].text
-    assert "MD&A body paragraph" in sections[2].text
-    assert "Market risk body paragraph" in sections[3].text
 
 
 def test_chunk_text_by_paragraph_uses_overlap_and_validates_inputs():
@@ -66,26 +32,18 @@ def test_chunk_text_by_paragraph_uses_overlap_and_validates_inputs():
 
 
 def test_chunk_sections_keeps_section_metadata():
-    sections = split_10k_sections(
-        """
-Item 1. Business
-Business paragraph one.
-
-Business paragraph two.
-
-Item 1A. Risk Factors
-Risk paragraph one.
-
-Risk paragraph two.
-
-Item 7. MD&A
-Discussion paragraph one.
-
-Discussion paragraph two.
-""",
-        target_sections=("1", "1A"),
-        min_section_chars=10,
-    )
+    sections = [
+        FilingSection(
+            section_id="1",
+            title="Business",
+            text="Business paragraph one.\n\nBusiness paragraph two.",
+        ),
+        FilingSection(
+            section_id="1A",
+            title="Risk Factors",
+            text="Risk paragraph one.\n\nRisk paragraph two.",
+        ),
+    ]
 
     chunks = chunk_sections(sections, chunk_size=80, overlap=10)
 
@@ -94,27 +52,7 @@ Discussion paragraph two.
     assert all(chunk.chunk_index >= 0 for chunk in chunks)
 
 
-def test_split_10k_sections_retains_custom_target_sections():
-    text = """
-Item 2. Properties
-Property body paragraph. Property body paragraph. Property body paragraph.
-
-Item 3. Legal Proceedings
-Legal body paragraph. Legal body paragraph. Legal body paragraph.
-"""
-
-    sections = split_10k_sections(
-        text,
-        target_sections=("2",),
-        min_section_chars=20,
-    )
-
-    assert [section.section_id for section in sections] == ["2"]
-    assert sections[0].title == "Properties"
-    assert "Property body paragraph" in sections[0].text
-
-
-def test_extract_10k_sections_uses_edgartools_and_fills_missing_sections(monkeypatch):
+def test_extract_10k_sections_returns_only_items_found_by_supported_extractors(monkeypatch):
     edgar_sections = [
         sections_module.FilingSection(
             section_id="1A",
@@ -127,31 +65,19 @@ def test_extract_10k_sections_uses_edgartools_and_fills_missing_sections(monkeyp
         "extract_10k_sections_with_edgartools",
         lambda *args, **kwargs: edgar_sections,
     )
-    clean_text = """
-Item 1. Business
-Business fallback content. Business fallback content. Business fallback content.
-
-Item 1A. Risk Factors
-Plain-text risk content. Plain-text risk content. Plain-text risk content.
-
-Item 7. Management's Discussion and Analysis
-Discussion fallback content. Discussion fallback content. Discussion fallback content.
-
-Item 7A. Quantitative and Qualitative Disclosures About Market Risk
-Market-risk fallback content. Market-risk fallback content. Market-risk fallback content.
-
-Item 8. Financial Statements
-"""
+    monkeypatch.setattr(
+        sections_module,
+        "extract_10k_sections_from_cross_reference_index",
+        lambda *args, **kwargs: [],
+    )
 
     extracted = extract_10k_sections(
         "<html></html>",
-        clean_text=clean_text,
         min_section_chars=20,
     )
 
-    assert [section.section_id for section in extracted] == ["1", "1A", "7", "7A"]
-    assert extracted[1].text.startswith("EdgarTools risk content")
-    assert extracted[0].text.startswith("Business fallback content")
+    assert [section.section_id for section in extracted] == ["1A"]
+    assert extracted[0].text.startswith("EdgarTools risk content")
 
 
 def test_extract_10k_sections_rejects_anomalously_short_edgartools_sections(monkeypatch):
@@ -182,6 +108,40 @@ def test_extract_10k_sections_rejects_anomalously_short_edgartools_sections(monk
     )
 
     assert extracted == []
+
+
+def test_extract_10k_sections_with_edgartools_uses_item_lookup(monkeypatch):
+    requested_items = []
+
+    class FakeSection:
+        def text(self):
+            return "Business content. " * 100
+
+    class FakeSections:
+        def get_item(self, section_id):
+            requested_items.append(section_id)
+            return FakeSection() if section_id == "1" else None
+
+    class FakeDocument:
+        sections = FakeSections()
+
+    class FakeParser:
+        def __init__(self, config):
+            self.config = config
+
+        def parse(self, html):
+            return FakeDocument()
+
+    monkeypatch.setattr(sections_module, "HTMLParser", FakeParser)
+
+    extracted = sections_module.extract_10k_sections_with_edgartools(
+        "<html></html>",
+        target_sections=("1", "1A"),
+        min_section_chars=20,
+    )
+
+    assert requested_items == ["1", "1A"]
+    assert [section.section_id for section in extracted] == ["1"]
 
 
 def test_extracts_non_contiguous_items_from_cross_reference_index():
@@ -264,7 +224,6 @@ def test_extract_10k_sections_uses_index_as_authority_when_present(monkeypatch):
 
     extracted = extract_10k_sections(
         "<html></html>",
-        clean_text="",
         target_sections=("1", "1A"),
         min_section_chars=20,
     )
