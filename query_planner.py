@@ -185,6 +185,7 @@ the supplied database context.
 Rules:
 - Output one JSON object and no surrounding prose.
 - Use only tickers and sections supplied in the database context.
+- If the requested company is not available in the database context, do not choose a peer or similar company.
 - Generate one to three concise semantic search queries.
 - Use "latest" for questions about the newest available information.
 - Use "latest_and_previous" only when comparing the latest period with an earlier
