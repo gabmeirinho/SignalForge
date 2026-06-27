@@ -125,11 +125,15 @@ class DeepSeekQueryPlanner:
             ],
             response_format={"type": "json_object"},
             max_tokens=800,
+            temperature=0.0,
             extra_body={"thinking": {"type": "disabled"}},
         )
         content = response.choices[0].message.content
         if not content:
             raise ValueError("DeepSeek returned an empty planner response")
+        # print(_system_prompt())
+        # print(_user_prompt(question=question, context=context))
+        # print(content)
         return content
 
 
@@ -187,6 +191,20 @@ Rules:
 - Use only tickers and sections supplied in the database context.
 - If the requested company is not available in the database context, do not choose a peer or similar company.
 - Generate one to three concise semantic search queries.
+- Prefer the smallest sufficient set of sections.
+- Use section "1" for business overview, products, services, customers, segments,
+  strategy, and operations.
+- Use section "1A" for risk factors, business risks, material risks,
+  cybersecurity risks, regulatory risks, and litigation risks.
+- Use section "7" for MD&A, management discussion, financial performance,
+  revenue, expenses, margins, profitability, results of operations, liquidity,
+  capital resources, cash flows, and management outlook.
+- Use section "7A" only for quantitative or qualitative market risk, interest
+  rate risk, foreign currency risk, exchange rate risk, commodity price risk,
+  credit risk, or sensitivity analysis.
+- Do not include section "7A" just because the question is financial. Include
+  "7A" only when the question explicitly asks about market risk or one of its
+  subtypes.
 - Use "latest" for questions about the newest available information.
 - Use "latest_and_previous" only when comparing the latest period with an earlier
   period and at least two filing years are available for the selected ticker.
@@ -194,6 +212,10 @@ Rules:
   are available for the selected ticker.
 - If the user requests a period that is not available, use "latest" while preserving
   the user's comparison or trend intent. Never invent a missing filing period.
+- Use intent "fact" when the user asks for a specific reported value, metric,
+  amount, figure, date, or number.
+- Use intent "summary" when the user asks to summarize, describe, explain, or
+  provide an overview.
 - Use intent "comparison" only for explicit company or period comparisons.
 - Use intent "trend" for change-over-time questions spanning multiple periods.
 - top_k must be between 1 and 20.
