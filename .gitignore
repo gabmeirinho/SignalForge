@@ -32,6 +32,11 @@ Thumbs.db
 *.log
 logs/
 
+# Frontend dependencies and builds
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+
 # SEC downloads and generated pipeline data
 sec-edgar-filings/
 data/
@@ -49,3 +54,6 @@ data/qdrant/
 *.jsonl
 *.parquet
 *.feather
+
+# Implementation Plan
+PLAN.md
