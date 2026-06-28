@@ -17,6 +17,7 @@ The project is script-first and designed for experimentation with retrieval, que
 - Build a local Qdrant vector index with FastEmbed embeddings.
 - Plan SEC retrieval queries with DeepSeek, with a local rule-based fallback when no API key is configured.
 - Generate cited answers from retrieved chunks, with extractive fallback output when LLM generation is unavailable.
+- Serve a local FastAPI backend and React research console for demo workflows.
 - Evaluate planner, retrieval, and answer behavior against golden test cases.
 
 ## Project Structure
@@ -28,6 +29,9 @@ The project is script-first and designed for experimentation with retrieval, que
 |-- search.py              # CLI for semantic search over indexed chunks
 |-- plan_query.py          # CLI for inspecting query plans
 |-- answer_query.py        # CLI for end-to-end question answering
+|-- api.py                 # FastAPI app for health, index, and query routes
+|-- rag_service.py         # Shared planner, retrieval, and answer orchestration
+|-- frontend/              # Vite React TypeScript research console
 |-- evaluate_planner.py    # Planner golden-case evaluation
 |-- evaluate_retrieval.py  # Retrieval golden-case evaluation
 |-- evaluate_answers.py    # Answer-generation golden-case evaluation
@@ -53,6 +57,7 @@ Generated data is intentionally ignored by git:
 
 - Python 3.11 or newer
 - `uv`
+- Node.js and npm for the React UI
 - SEC EDGAR user-agent details for downloads
 - Optional: DeepSeek API key for LLM query planning and answer generation
 
@@ -105,6 +110,22 @@ Ask an end-to-end question:
 uv run python answer_query.py "What does NVDA say about supply chain risk?" --show-plan --show-chunks
 ```
 
+Run the local API:
+
+```bash
+uv run uvicorn api:app --reload --port 8000
+```
+
+Run the React research console:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`. The frontend calls `http://localhost:8000` by default.
+
 ## Common Commands
 
 Ingest an existing local SEC download without hitting EDGAR:
@@ -131,6 +152,13 @@ Inspect only the planner output:
 
 ```bash
 uv run python plan_query.py "Compare NVDA and MSFT risk factors in their latest filings"
+```
+
+Run the frontend production build:
+
+```bash
+cd frontend
+npm run build
 ```
 
 ## Evaluation
@@ -181,6 +209,21 @@ Default models:
 - Answer generator: `deepseek-v4-flash`
 
 Most scripts expose flags for database path, Qdrant path, collection name, model names, and limits. Run any script with `--help` for the full set of options.
+
+The FastAPI app also supports environment overrides:
+
+- `SIGNALFORGE_DB_PATH`
+- `SIGNALFORGE_QDRANT_PATH`
+- `SIGNALFORGE_COLLECTION`
+- `SIGNALFORGE_EMBEDDING_MODEL`
+- `SIGNALFORGE_PLANNER_MODEL`
+- `SIGNALFORGE_ANSWER_MODEL`
+
+The frontend API base can be changed with:
+
+```bash
+VITE_API_BASE_URL=http://localhost:8000 npm run dev
+```
 
 ## Notes
 
