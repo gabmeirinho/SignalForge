@@ -50,6 +50,7 @@ class PlannerContext:
     available_tickers: tuple[str, ...]
     available_sections: tuple[str, ...]
     filing_years_by_ticker: dict[str, tuple[int, ...]]
+    company_names_by_ticker: dict[str, tuple[str, ...]] | None = None
 
     def to_prompt_dict(self) -> dict:
         return {
@@ -57,6 +58,10 @@ class PlannerContext:
             "available_sections": list(self.available_sections),
             "available_filing_years": {
                 ticker: list(years) for ticker, years in self.filing_years_by_ticker.items()
+            },
+            "company_names_by_ticker": {
+                ticker: list(names)
+                for ticker, names in (self.company_names_by_ticker or {}).items()
             },
         }
 
@@ -145,6 +150,45 @@ class DeepSeekQueryPlanner:
         # print(_user_prompt(question=question, context=context))
         # print(content)
         return content
+
+
+class LocalQueryPlanner:
+    def create_plan(self, question: str, context: PlannerContext) -> PlanningResult:
+        question = question.strip()
+        if not question:
+            raise ValueError("question must not be empty")
+
+        tickers = _infer_tickers_from_question(question, context)
+        sections = _infer_sections_from_question(question) or []
+        sections = [section for section in sections if section in set(context.available_sections)]
+        intent = _infer_intent_from_question(question)
+        time_scope = _infer_time_scope_from_question(question, intent=intent)
+        available_years = _available_years_for_tickers(tickers, context)
+
+        raw_plan = PlannerResponse(
+            tickers=tickers,
+            sections=sections,
+            semantic_queries=[],
+            time_scope=time_scope,
+            filing_years=_infer_filing_years_from_question(question, available_years),
+            intent=intent,
+            top_k=5,
+        )
+        plan = normalize_plan(raw_plan, question=question, context=context)
+        return PlanningResult(
+            plan=plan,
+            used_fallback=True,
+            error="DEEPSEEK_API_KEY is not set; used local rule-based planner",
+        )
+
+
+def create_query_planner_from_environment(
+    *,
+    model: str = DEFAULT_PLANNER_MODEL,
+) -> DeepSeekQueryPlanner | LocalQueryPlanner:
+    if os.getenv("DEEPSEEK_API_KEY"):
+        return DeepSeekQueryPlanner.from_environment(model=model)
+    return LocalQueryPlanner()
 
 
 def normalize_plan(
@@ -342,6 +386,74 @@ def _normalize_intent(intent: str, question: str) -> str:
     if any(term in question for term in ("table", "tables", "what revenue", "how much")):
         return "fact"
     return intent
+
+
+def _infer_tickers_from_question(question: str, context: PlannerContext) -> list[str]:
+    normalized_question = _normalize_match_text(question)
+    matched = []
+
+    for ticker in context.available_tickers:
+        ticker_pattern = rf"\b{re.escape(ticker.lower())}\b"
+        if re.search(ticker_pattern, question.lower()):
+            matched.append(ticker)
+            continue
+
+        for company_name in (context.company_names_by_ticker or {}).get(ticker, ()):
+            normalized_name = _normalize_company_name(company_name)
+            if normalized_name and normalized_name in normalized_question:
+                matched.append(ticker)
+                break
+
+    return _unique(matched)
+
+
+def _infer_intent_from_question(question: str) -> str:
+    lowered = question.lower()
+    if any(term in lowered for term in ("over time", "trend", "changed", "evolved", "historical")):
+        return "trend"
+    if any(term in lowered for term in ("compare", "comparison", "versus", " vs ", "between")):
+        return "comparison"
+    return _normalize_intent("summary", question)
+
+
+def _infer_time_scope_from_question(question: str, *, intent: str) -> str:
+    lowered = question.lower()
+    if _question_requests_specific_years(question):
+        return "specific_years"
+    if intent == "trend":
+        return "all_available"
+    if "previous" in lowered or "prior" in lowered or "year over year" in lowered:
+        return "latest_and_previous"
+    return "latest"
+
+
+def _normalize_company_name(company_name: str) -> str:
+    normalized = _normalize_match_text(company_name)
+    suffixes = (
+        " inc",
+        " incorporated",
+        " corp",
+        " corporation",
+        " co",
+        " company",
+        " ltd",
+        " limited",
+        " plc",
+        " class a",
+        " common stock",
+    )
+    changed = True
+    while changed:
+        changed = False
+        for suffix in suffixes:
+            if normalized.endswith(suffix):
+                normalized = normalized[: -len(suffix)].strip()
+                changed = True
+    return normalized
+
+
+def _normalize_match_text(value: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9]+", " ", value.lower())).strip()
 
 
 def _system_prompt() -> str:

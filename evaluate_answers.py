@@ -6,14 +6,19 @@ from types import SimpleNamespace
 
 from dotenv import load_dotenv
 
-from answer_generator import AnswerGenerator, DEFAULT_ANSWER_MODEL
+from answer_generator import (
+    AnswerGenerator,
+    DEFAULT_ANSWER_MODEL,
+    ExtractiveAnswerGenerator,
+    create_answer_generator_from_environment,
+)
 from answer_query import select_ready_accessions_by_ticker, years_for_plan_scope
 from evaluate_planner import compare_plan
 from query_planner import (
     DEFAULT_PLANNER_MODEL,
-    DeepSeekQueryPlanner,
     PlannerContext,
     SearchPlan,
+    create_query_planner_from_environment,
 )
 from storage import connect_database, initialize_database
 from vector_store import (
@@ -39,8 +44,8 @@ def main() -> None:
 
     planner = None
     if not args.use_expected_plan:
-        planner = DeepSeekQueryPlanner.from_environment(model=args.planner_model)
-    generator = AnswerGenerator.from_environment(model=args.answer_model)
+        planner = create_query_planner_from_environment(model=args.planner_model)
+    generator = create_answer_generator_from_environment(model=args.answer_model)
     retrieval_client = create_qdrant_client(args.qdrant_path)
 
     try:
@@ -80,7 +85,7 @@ def evaluate_case(
     *,
     connection,
     planner,
-    generator: AnswerGenerator,
+    generator: AnswerGenerator | ExtractiveAnswerGenerator,
     retrieval_client,
     collection: str,
     embedding_model: str,

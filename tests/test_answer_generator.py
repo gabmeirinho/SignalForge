@@ -1,7 +1,7 @@
 import json
 from types import SimpleNamespace
 
-from answer_generator import AnswerGenerator, format_evidence
+from answer_generator import AnswerGenerator, ExtractiveAnswerGenerator, format_evidence
 from answer_query import select_ready_accessions_by_ticker, years_for_plan_scope
 from evaluate_answers import evaluate_answer_quality
 from query_planner import PlannerContext, SearchPlan
@@ -115,6 +115,41 @@ def test_answer_generator_returns_no_supported_ticker_without_model_call():
     assert "did not match an indexed company ticker" in generated.answer
     assert "AMD, NVDA" in generated.answer
     assert client.request is None
+
+
+def test_extractive_answer_generator_returns_retrieved_evidence_without_model_call():
+    generator = ExtractiveAnswerGenerator()
+    plan = SearchPlan(
+        tickers=["NVDA"],
+        sections=["1A"],
+        semantic_queries=["NVIDIA risk factors"],
+        time_scope="latest",
+        intent="summary",
+    )
+    chunks = [
+        SearchResult(
+            score=0.91,
+            payload={
+                "ticker": "NVDA",
+                "filing_date": "2026-02-25",
+                "section_id": "1A",
+                "chunk_index": 4,
+                "accession_number": "0001045810-26-000021",
+                "text": "Supply chain risk.",
+            },
+        )
+    ]
+
+    generated = generator.generate(
+        question="What are NVIDIA's risks?",
+        plan=plan,
+        chunks=chunks,
+    )
+
+    assert "DEEPSEEK_API_KEY is not set" in generated.answer
+    assert "[1] NVDA 2026 Item 1A chunk 4: Supply chain risk." in generated.answer
+    assert generated.evidence_labels == ["[1] NVDA 2026 Item 1A chunk 4"]
+    assert generated.warnings == ["llm answer generation unavailable"]
 
 
 def test_empty_ticker_plan_does_not_select_broad_accessions():

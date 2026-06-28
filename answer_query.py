@@ -3,9 +3,9 @@ import json
 
 from dotenv import load_dotenv
 
-from answer_generator import AnswerGenerator, DEFAULT_ANSWER_MODEL
+from answer_generator import DEFAULT_ANSWER_MODEL, create_answer_generator_from_environment
 from plan_query import build_planner_context
-from query_planner import DEFAULT_PLANNER_MODEL, DeepSeekQueryPlanner, PlannerContext, SearchPlan
+from query_planner import DEFAULT_PLANNER_MODEL, PlannerContext, SearchPlan, create_query_planner_from_environment
 from storage import (
     connect_database,
     get_ready_accession_numbers,
@@ -27,7 +27,7 @@ def main() -> None:
     with connect_database(args.db_path) as connection:
         initialize_database(connection)
         context = build_planner_context(load_planner_metadata(connection))
-        planner = DeepSeekQueryPlanner.from_environment(model=args.planner_model)
+        planner = create_query_planner_from_environment(model=args.planner_model)
         planning_result = planner.create_plan(args.question, context)
         plan = planning_result.plan
         accessions_by_ticker = select_ready_accessions_by_ticker(
@@ -66,7 +66,7 @@ def main() -> None:
         finally:
             client.close()
 
-    generator = AnswerGenerator.from_environment(model=args.answer_model)
+    generator = create_answer_generator_from_environment(model=args.answer_model)
     generated = generator.generate(
         question=args.question,
         plan=plan,

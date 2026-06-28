@@ -2,7 +2,7 @@ import json
 from types import SimpleNamespace
 
 from plan_query import build_planner_context
-from query_planner import DeepSeekQueryPlanner, PlannerContext
+from query_planner import DeepSeekQueryPlanner, LocalQueryPlanner, PlannerContext
 
 
 def test_deepseek_planner_returns_normalized_plan():
@@ -275,11 +275,47 @@ def test_deepseek_planner_retries_an_empty_response():
     assert result.plan.sections == ["1A"]
 
 
+def test_local_planner_infers_company_section_year_and_scope():
+    context = PlannerContext(
+        available_tickers=("NVDA",),
+        available_sections=("1", "1A", "7", "7A"),
+        filing_years_by_ticker={"NVDA": (2026, 2025, 2024)},
+        company_names_by_ticker={"NVDA": ("NVIDIA CORP",)},
+    )
+
+    result = LocalQueryPlanner().create_plan(
+        "Summarize NVIDIA's risk factors from 2025.",
+        context,
+    )
+
+    assert result.used_fallback is True
+    assert result.plan.tickers == ["NVDA"]
+    assert result.plan.sections == ["1A"]
+    assert result.plan.time_scope == "specific_years"
+    assert result.plan.filing_years == [2025]
+    assert result.plan.semantic_queries == ["Summarize NVIDIA's risk factors from 2025."]
+
+
 def test_build_planner_context_uses_database_metadata():
     rows = [
-        {"ticker": "NVDA", "filing_date": "2026-02-25", "section_id": "1A"},
-        {"ticker": "NVDA", "filing_date": "2025-02-26", "section_id": "7"},
-        {"ticker": "AMD", "filing_date": "2026-02-04", "section_id": "8"},
+        {
+            "ticker": "NVDA",
+            "company_name": "NVIDIA CORP",
+            "filing_date": "2026-02-25",
+            "section_id": "1A",
+        },
+        {
+            "ticker": "NVDA",
+            "company_name": "NVIDIA CORP",
+            "filing_date": "2025-02-26",
+            "section_id": "7",
+        },
+        {
+            "ticker": "AMD",
+            "company_name": "ADVANCED MICRO DEVICES INC",
+            "filing_date": "2026-02-04",
+            "section_id": "8",
+        },
     ]
 
     context = build_planner_context(rows)
@@ -289,6 +325,10 @@ def test_build_planner_context_uses_database_metadata():
     assert context.filing_years_by_ticker == {
         "AMD": (2026,),
         "NVDA": (2026, 2025),
+    }
+    assert context.company_names_by_ticker == {
+        "AMD": ("ADVANCED MICRO DEVICES INC",),
+        "NVDA": ("NVIDIA CORP",),
     }
 
 

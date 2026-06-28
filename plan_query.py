@@ -5,9 +5,9 @@ from dotenv import load_dotenv
 
 from query_planner import (
     DEFAULT_PLANNER_MODEL,
-    DeepSeekQueryPlanner,
     PlannerContext,
     SUPPORTED_SECTIONS,
+    create_query_planner_from_environment,
 )
 from storage import connect_database, initialize_database, load_planner_metadata
 
@@ -20,7 +20,7 @@ def main() -> None:
         initialize_database(connection)
         context = build_planner_context(load_planner_metadata(connection))
 
-    planner = DeepSeekQueryPlanner.from_environment(model=args.model)
+    planner = create_query_planner_from_environment(model=args.model)
     result = planner.create_plan(args.question, context)
 
     output = {
@@ -35,10 +35,13 @@ def build_planner_context(rows) -> PlannerContext:
     tickers = set()
     sections = set()
     years_by_ticker: dict[str, set[int]] = {}
+    company_names_by_ticker: dict[str, set[str]] = {}
 
     for row in rows:
         ticker = str(row["ticker"]).upper()
         tickers.add(ticker)
+        if "company_name" in row.keys() and row["company_name"]:
+            company_names_by_ticker.setdefault(ticker, set()).add(str(row["company_name"]))
 
         section_id = str(row["section_id"]).upper()
         if section_id in SUPPORTED_SECTIONS:
@@ -59,6 +62,10 @@ def build_planner_context(rows) -> PlannerContext:
         filing_years_by_ticker={
             ticker: tuple(sorted(years, reverse=True))
             for ticker, years in sorted(years_by_ticker.items())
+        },
+        company_names_by_ticker={
+            ticker: tuple(sorted(names))
+            for ticker, names in sorted(company_names_by_ticker.items())
         },
     )
 

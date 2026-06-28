@@ -100,6 +100,54 @@ class AnswerGenerator:
         return content.strip()
 
 
+class ExtractiveAnswerGenerator:
+    def generate(
+        self,
+        *,
+        question: str,
+        plan: SearchPlan,
+        chunks: list[SearchResult],
+        available_years_by_ticker: dict[str, tuple[int, ...]] | None = None,
+    ) -> GeneratedAnswer:
+        if not chunks:
+            generated = no_evidence_answer(
+                question=question,
+                plan=plan,
+                available_years_by_ticker=available_years_by_ticker or {},
+            )
+            return GeneratedAnswer(
+                answer=generated.answer,
+                evidence_labels=generated.evidence_labels,
+                warnings=[*generated.warnings, "llm answer generation unavailable"],
+            )
+
+        evidence = format_evidence(chunks)
+        lines = [
+            "LLM answer generation is unavailable because DEEPSEEK_API_KEY is not set.",
+            "Retrieved evidence:",
+        ]
+        for block in evidence:
+            text = _single_line(block.text)
+            if len(text) > 500:
+                text = f"{text[:497]}..."
+            lines.append(f"{block.label}: {text}")
+
+        return GeneratedAnswer(
+            answer="\n".join(lines),
+            evidence_labels=[block.label for block in evidence],
+            warnings=["llm answer generation unavailable"],
+        )
+
+
+def create_answer_generator_from_environment(
+    *,
+    model: str = DEFAULT_ANSWER_MODEL,
+) -> AnswerGenerator | ExtractiveAnswerGenerator:
+    if os.getenv("DEEPSEEK_API_KEY"):
+        return AnswerGenerator.from_environment(model=model)
+    return ExtractiveAnswerGenerator()
+
+
 @dataclass(frozen=True)
 class EvidenceBlock:
     label: str
@@ -196,6 +244,10 @@ def _no_supported_ticker_answer(
         "match an indexed company ticker. Available tickers are "
         f"{', '.join(available_tickers)}."
     )
+
+
+def _single_line(value: str) -> str:
+    return " ".join(value.split())
 
 
 def _system_prompt() -> str:

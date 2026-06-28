@@ -366,6 +366,7 @@ def load_planner_metadata(connection: sqlite3.Connection) -> list[sqlite3.Row]:
         """
         SELECT DISTINCT
             f.ticker,
+            f.company_name,
             f.filing_date,
             c.section_id
         FROM filings AS f
