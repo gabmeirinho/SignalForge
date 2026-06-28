@@ -148,6 +148,10 @@ def no_evidence_answer(
             plan=plan,
             available_years_by_ticker=available_years_by_ticker,
         )
+    elif not plan.tickers:
+        answer = _no_supported_ticker_answer(
+            available_years_by_ticker=available_years_by_ticker,
+        )
     else:
         answer = (
             "I could not answer from the local SEC filing index because retrieval returned "
@@ -176,6 +180,21 @@ def _unavailable_specific_year_answer(
     return (
         "The requested filing year is not available in the local filing index. "
         f"Available filing years are {', '.join(parts)}."
+    )
+
+
+def _no_supported_ticker_answer(
+    *,
+    available_years_by_ticker: dict[str, tuple[int, ...]],
+) -> str:
+    available_tickers = sorted(available_years_by_ticker)
+    if not available_tickers:
+        return "No supported company ticker is available in the local filing index."
+
+    return (
+        "I could not answer from the local SEC filing index because the question did not "
+        "match an indexed company ticker. Available tickers are "
+        f"{', '.join(available_tickers)}."
     )
 
 

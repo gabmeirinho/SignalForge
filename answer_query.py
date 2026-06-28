@@ -92,9 +92,12 @@ def select_ready_accessions_by_ticker(
     embedding_model: str,
     collection: str,
 ) -> dict[str, list[str]]:
+    if not plan.tickers:
+        return {}
+
     accessions_by_ticker = {}
 
-    for ticker in plan.tickers or [None]:
+    for ticker in plan.tickers:
         years = years_for_plan_scope(plan, ticker=ticker, context=context)
         key = ticker or ""
         accessions_by_ticker[key] = get_ready_accession_numbers(

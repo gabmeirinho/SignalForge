@@ -2,7 +2,8 @@ import json
 from types import SimpleNamespace
 
 from answer_generator import AnswerGenerator, format_evidence
-from answer_query import years_for_plan_scope
+from answer_query import select_ready_accessions_by_ticker, years_for_plan_scope
+from evaluate_answers import evaluate_answer_quality
 from query_planner import PlannerContext, SearchPlan
 from vector_store import SearchResult
 
@@ -93,6 +94,54 @@ def test_answer_generator_returns_unavailable_year_without_model_call():
     assert client.request is None
 
 
+def test_answer_generator_returns_no_supported_ticker_without_model_call():
+    client = FakeClient("should not be used")
+    generator = AnswerGenerator(client=client)
+    plan = SearchPlan(
+        tickers=[],
+        sections=["7"],
+        semantic_queries=["Intel revenue last year"],
+        time_scope="latest",
+        intent="fact",
+    )
+
+    generated = generator.generate(
+        question="What is the reported revenue of Intel last year?",
+        plan=plan,
+        chunks=[],
+        available_years_by_ticker={"AMD": (2026,), "NVDA": (2026,)},
+    )
+
+    assert "did not match an indexed company ticker" in generated.answer
+    assert "AMD, NVDA" in generated.answer
+    assert client.request is None
+
+
+def test_empty_ticker_plan_does_not_select_broad_accessions():
+    context = PlannerContext(
+        available_tickers=("AMD", "NVDA"),
+        available_sections=("7",),
+        filing_years_by_ticker={"AMD": (2026,), "NVDA": (2026,)},
+    )
+    plan = SearchPlan(
+        tickers=[],
+        sections=["7"],
+        semantic_queries=["Intel revenue last year"],
+        time_scope="latest",
+        intent="fact",
+    )
+
+    accessions = select_ready_accessions_by_ticker(
+        object(),
+        plan=plan,
+        context=context,
+        embedding_model="model",
+        collection="collection",
+    )
+
+    assert accessions == {}
+
+
 def test_years_for_plan_scope_selects_periods_from_context():
     context = PlannerContext(
         available_tickers=("QCOM",),
@@ -108,6 +157,42 @@ def test_years_for_plan_scope_selects_periods_from_context():
     )
 
     assert years_for_plan_scope(plan, ticker="QCOM", context=context) == [2025, 2024]
+
+
+def test_answer_quality_requires_citations_when_chunks_exist():
+    plan = {
+        "tickers": ["NVDA"],
+        "sections": ["1A"],
+        "semantic_queries": ["NVIDIA risks"],
+        "time_scope": "latest",
+        "filing_years": [],
+        "intent": "summary",
+        "top_k": 5,
+    }
+    expected = {
+        "tickers": ["NVDA"],
+        "sections": ["1A"],
+        "time_scope": "latest",
+        "intent": "summary",
+    }
+    context = PlannerContext(
+        available_tickers=("NVDA",),
+        available_sections=("1A",),
+        filing_years_by_ticker={"NVDA": (2026,)},
+    )
+
+    failures = evaluate_answer_quality(
+        answer="NVIDIA has supply chain risks.",
+        chunks=[SearchResult(score=0.9, payload={"ticker": "NVDA"})],
+        actual_plan=plan,
+        expected=expected,
+        context=context,
+        used_fallback=False,
+        plan_error=None,
+        use_expected_plan=True,
+    )
+
+    assert failures == ["answer has retrieved chunks but no citation labels"]
 
 
 class FakeClient:
