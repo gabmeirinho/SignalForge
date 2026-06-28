@@ -376,6 +376,50 @@ def load_planner_metadata(connection: sqlite3.Connection) -> list[sqlite3.Row]:
     ).fetchall()
 
 
+def load_index_metadata(
+    connection: sqlite3.Connection,
+    *,
+    embedding_model: str,
+    vector_collection: str,
+) -> list[sqlite3.Row]:
+    return connection.execute(
+        """
+        SELECT
+            f.ticker,
+            f.company_name,
+            f.accession_number,
+            f.form_type,
+            f.filing_date,
+            f.period_of_report,
+            COALESCE(er.status, 'pending') AS status,
+            COALESCE(er.expected_point_count, 0) AS expected_point_count,
+            COALESCE(er.indexed_point_count, 0) AS indexed_point_count
+        FROM filings AS f
+        LEFT JOIN embedding_runs AS er
+          ON er.filing_id = f.id
+         AND er.embedding_model = ?
+         AND er.vector_collection = ?
+        ORDER BY f.ticker, f.filing_date DESC, f.accession_number
+        """,
+        (embedding_model, vector_collection),
+    ).fetchall()
+
+
+def load_index_section_counts(connection: sqlite3.Connection) -> list[sqlite3.Row]:
+    return connection.execute(
+        """
+        SELECT
+            f.ticker,
+            c.section_id,
+            COUNT(*) AS chunk_count
+        FROM chunks AS c
+        JOIN filings AS f ON f.id = c.filing_id
+        GROUP BY f.ticker, c.section_id
+        ORDER BY f.ticker, c.section_id
+        """
+    ).fetchall()
+
+
 def update_embedding_run_progress(
     connection: sqlite3.Connection,
     *,
