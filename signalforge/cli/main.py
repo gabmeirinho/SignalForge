@@ -1,7 +1,7 @@
 from sec_edgar_downloader import Downloader
 from pathlib import Path
 
-from parser import parse_sec_filing_to_text
+from signalforge.parser import parse_sec_filing_to_text
 
 FILING_PATH = Path("sec-edgar-filings/NVDA/10-K/0001045810-26-000021/full-submission.txt")
 

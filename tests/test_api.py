@@ -1,10 +1,10 @@
 from fastapi.testclient import TestClient
 
-from api import app
-from query_planner import SearchPlan
-from rag_service import QueryResponse, SourceChunk
-from sections import TextChunk
-from storage import (
+from signalforge.api import app
+from signalforge.query_planner import SearchPlan
+from signalforge.rag_service import QueryResponse, SourceChunk
+from signalforge.sections import TextChunk
+from signalforge.storage import (
     FilingMetadata,
     connect_database,
     initialize_database,
@@ -126,7 +126,7 @@ def test_query_validates_and_shapes_response(monkeypatch, tmp_path):
             ],
         )
 
-    monkeypatch.setattr("api.answer_question", fake_answer_question)
+    monkeypatch.setattr("signalforge.api.answer_question", fake_answer_question)
     client = TestClient(app)
 
     invalid_response = client.post("/api/query", json={"question": "  x "})
@@ -174,7 +174,7 @@ def test_query_passes_through_warnings_and_fallback_state(monkeypatch, tmp_path)
             sources=[],
         )
 
-    monkeypatch.setattr("api.answer_question", fake_answer_question)
+    monkeypatch.setattr("signalforge.api.answer_question", fake_answer_question)
 
     response = TestClient(app).post(
         "/api/query",

@@ -3,14 +3,14 @@ import json
 
 from dotenv import load_dotenv
 
-from answer_generator import DEFAULT_ANSWER_MODEL
-from query_planner import DEFAULT_PLANNER_MODEL
-from rag_service import answer_question
-from rag_service import (
+from signalforge.answer_generator import DEFAULT_ANSWER_MODEL
+from signalforge.query_planner import DEFAULT_PLANNER_MODEL
+from signalforge.rag_service import answer_question
+from signalforge.rag_service import (
     select_ready_accessions_by_ticker as select_ready_accessions_by_ticker,
 )
-from rag_service import years_for_plan_scope as years_for_plan_scope
-from vector_store import DEFAULT_COLLECTION, DEFAULT_EMBEDDING_MODEL
+from signalforge.rag_service import years_for_plan_scope as years_for_plan_scope
+from signalforge.vector_store import DEFAULT_COLLECTION, DEFAULT_EMBEDDING_MODEL
 
 
 def main() -> None:

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sections import TextChunk
+from signalforge.sections import TextChunk
 
 
 @dataclass(frozen=True)

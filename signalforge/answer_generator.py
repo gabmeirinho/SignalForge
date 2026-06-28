@@ -5,12 +5,12 @@ from dataclasses import dataclass
 from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-from query_planner import (
+from signalforge.query_planner import (
     ChatCompletionsClient,
     DEFAULT_DEEPSEEK_BASE_URL,
     SearchPlan,
 )
-from vector_store import SearchResult
+from signalforge.vector_store import SearchResult
 
 
 DEFAULT_ANSWER_MODEL = "deepseek-v4-flash"

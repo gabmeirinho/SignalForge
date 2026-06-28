@@ -5,9 +5,9 @@ from pathlib import Path
 
 from sec_edgar_downloader import Downloader
 
-from parser import clean_sec_html, extract_primary_document
-from sections import chunk_sections, extract_10k_sections
-from storage import FilingMetadata, initialize_database, replace_filing_chunks, upsert_filing
+from signalforge.parser import clean_sec_html, extract_primary_document
+from signalforge.sections import chunk_sections, extract_10k_sections
+from signalforge.storage import FilingMetadata, initialize_database, replace_filing_chunks, upsert_filing
 
 
 HEADER_RE = re.compile(r"<SEC-HEADER>(?P<header>.*?)</SEC-HEADER>", re.IGNORECASE | re.DOTALL)

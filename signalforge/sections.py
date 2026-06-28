@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from edgar.documents import HTMLParser, ParserConfig
 
-from cross_reference import extract_cross_referenced_items
+from signalforge.cross_reference import extract_cross_referenced_items
 
 
 DEFAULT_TARGET_SECTIONS = ("1", "1A", "7", "7A")

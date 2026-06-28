@@ -3,8 +3,8 @@ import json
 import textwrap
 from pathlib import Path
 
-from storage import connect_database, get_ready_accession_numbers, initialize_database
-from vector_store import (
+from signalforge.storage import connect_database, get_ready_accession_numbers, initialize_database
+from signalforge.vector_store import (
     DEFAULT_COLLECTION,
     DEFAULT_EMBEDDING_MODEL,
     create_qdrant_client,

@@ -1,11 +1,11 @@
 import json
 from types import SimpleNamespace
 
-from answer_generator import AnswerGenerator, ExtractiveAnswerGenerator, format_evidence
-from answer_query import select_ready_accessions_by_ticker, years_for_plan_scope
-from evaluate_answers import evaluate_answer_quality
-from query_planner import PlannerContext, SearchPlan
-from vector_store import SearchResult
+from signalforge.answer_generator import AnswerGenerator, ExtractiveAnswerGenerator, format_evidence
+from signalforge.cli.answer_query import select_ready_accessions_by_ticker, years_for_plan_scope
+from signalforge.cli.evaluate_answers import evaluate_answer_quality
+from signalforge.query_planner import PlannerContext, SearchPlan
+from signalforge.vector_store import SearchResult
 
 
 def test_format_evidence_labels_chunks_with_source_metadata():

@@ -6,22 +6,22 @@ from types import SimpleNamespace
 
 from dotenv import load_dotenv
 
-from answer_generator import (
+from signalforge.answer_generator import (
     AnswerGenerator,
     DEFAULT_ANSWER_MODEL,
     ExtractiveAnswerGenerator,
     create_answer_generator_from_environment,
 )
-from answer_query import select_ready_accessions_by_ticker, years_for_plan_scope
-from evaluate_planner import compare_plan
-from query_planner import (
+from signalforge.cli.answer_query import select_ready_accessions_by_ticker, years_for_plan_scope
+from signalforge.cli.evaluate_planner import compare_plan
+from signalforge.query_planner import (
     DEFAULT_PLANNER_MODEL,
     PlannerContext,
     SearchPlan,
     create_query_planner_from_environment,
 )
-from storage import connect_database, initialize_database
-from vector_store import (
+from signalforge.storage import connect_database, initialize_database
+from signalforge.vector_store import (
     DEFAULT_COLLECTION,
     DEFAULT_EMBEDDING_MODEL,
     create_qdrant_client,

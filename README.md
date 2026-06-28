@@ -2,7 +2,7 @@
 
 SignalForge is a local market intelligence pipeline for SEC EDGAR 10-K filings. It downloads filings, extracts key sections, chunks them into a SQLite database, indexes those chunks in a local Qdrant vector store, and answers financial research questions with cited filing evidence.
 
-The project is script-first and designed for experimentation with retrieval, query planning, and answer generation over company filings.
+The project is package-first and designed for experimentation with retrieval, query planning, and answer generation over company filings.
 
 ## Features
 
@@ -24,24 +24,27 @@ The project is script-first and designed for experimentation with retrieval, que
 
 ```text
 .
-|-- ingest.py              # CLI for downloading and ingesting SEC filings
-|-- vectorize.py           # CLI for embedding chunks into local Qdrant
-|-- search.py              # CLI for semantic search over indexed chunks
-|-- plan_query.py          # CLI for inspecting query plans
-|-- answer_query.py        # CLI for end-to-end question answering
-|-- api.py                 # FastAPI app for health, index, and query routes
-|-- rag_service.py         # Shared planner, retrieval, and answer orchestration
+|-- signalforge/
+|   |-- api.py                 # FastAPI app for health, index, and query routes
+|   |-- rag_service.py         # Shared planner, retrieval, and answer orchestration
+|   |-- ingestion.py           # Ingestion orchestration
+|   |-- parser.py              # SEC filing text parsing
+|   |-- sections.py            # 10-K section extraction and chunking
+|   |-- storage.py             # SQLite schema and persistence
+|   |-- vector_store.py        # Qdrant indexing and retrieval helpers
+|   |-- query_planner.py       # LLM and fallback query planners
+|   |-- answer_generator.py    # LLM and extractive answer generators
+|   |-- cross_reference.py     # 10-K cross-reference extraction helpers
+|   `-- cli/
+|       |-- ingest.py              # CLI for downloading and ingesting SEC filings
+|       |-- vectorize.py           # CLI for embedding chunks into local Qdrant
+|       |-- search.py              # CLI for semantic search over indexed chunks
+|       |-- plan_query.py          # CLI for inspecting query plans
+|       |-- answer_query.py        # CLI for end-to-end question answering
+|       |-- evaluate_planner.py    # Planner golden-case evaluation
+|       |-- evaluate_retrieval.py  # Retrieval golden-case evaluation
+|       `-- evaluate_answers.py    # Answer-generation golden-case evaluation
 |-- frontend/              # Vite React TypeScript research console
-|-- evaluate_planner.py    # Planner golden-case evaluation
-|-- evaluate_retrieval.py  # Retrieval golden-case evaluation
-|-- evaluate_answers.py    # Answer-generation golden-case evaluation
-|-- ingestion.py           # Ingestion orchestration
-|-- parser.py              # SEC filing text parsing
-|-- sections.py            # 10-K section extraction and chunking
-|-- storage.py             # SQLite schema and persistence
-|-- vector_store.py        # Qdrant indexing and retrieval helpers
-|-- query_planner.py       # LLM and fallback query planners
-|-- answer_generator.py    # LLM and extractive answer generators
 `-- tests/                 # Unit tests and golden fixtures
 ```
 
@@ -89,31 +92,31 @@ DEEPSEEK_BASE_URL="https://api.deepseek.com"
 Ingest a recent 10-K:
 
 ```bash
-uv run python ingest.py --ticker NVDA --limit 1
+uv run python -m signalforge.cli.ingest --ticker NVDA --limit 1
 ```
 
 Build the vector index:
 
 ```bash
-uv run python vectorize.py
+uv run python -m signalforge.cli.vectorize
 ```
 
 Run semantic search:
 
 ```bash
-uv run python search.py "What are the main AI infrastructure risks?" --ticker NVDA --section 1A
+uv run python -m signalforge.cli.search "What are the main AI infrastructure risks?" --ticker NVDA --section 1A
 ```
 
 Ask an end-to-end question:
 
 ```bash
-uv run python answer_query.py "What does NVDA say about supply chain risk?" --show-plan --show-chunks
+uv run python -m signalforge.cli.answer_query "What does NVDA say about supply chain risk?" --show-plan --show-chunks
 ```
 
 Run the local API:
 
 ```bash
-uv run uvicorn api:app --reload --port 8000
+uv run uvicorn signalforge.api:app --reload --port 8000
 ```
 
 Run the React research console:
@@ -131,27 +134,27 @@ Open `http://localhost:5173`. The frontend calls `http://localhost:8000` by defa
 Ingest an existing local SEC download without hitting EDGAR:
 
 ```bash
-uv run python ingest.py --ticker NVDA --no-download
+uv run python -m signalforge.cli.ingest --ticker NVDA --no-download
 ```
 
 Ingest more than one filing:
 
 ```bash
-uv run python ingest.py --ticker MSFT --limit 3
+uv run python -m signalforge.cli.ingest --ticker MSFT --limit 3
 ```
 
 Use a custom database or vector-store path:
 
 ```bash
-uv run python ingest.py --ticker AAPL --db-path data/custom.sqlite3
-uv run python vectorize.py --db-path data/custom.sqlite3 --qdrant-path data/custom-qdrant
-uv run python answer_query.py "Summarize AAPL revenue risks" --db-path data/custom.sqlite3 --qdrant-path data/custom-qdrant
+uv run python -m signalforge.cli.ingest --ticker AAPL --db-path data/custom.sqlite3
+uv run python -m signalforge.cli.vectorize --db-path data/custom.sqlite3 --qdrant-path data/custom-qdrant
+uv run python -m signalforge.cli.answer_query "Summarize AAPL revenue risks" --db-path data/custom.sqlite3 --qdrant-path data/custom-qdrant
 ```
 
 Inspect only the planner output:
 
 ```bash
-uv run python plan_query.py "Compare NVDA and MSFT risk factors in their latest filings"
+uv run python -m signalforge.cli.plan_query "Compare NVDA and MSFT risk factors in their latest filings"
 ```
 
 Run the frontend production build:
@@ -179,25 +182,25 @@ uv run pytest
 Run planner golden-case evaluation:
 
 ```bash
-uv run python evaluate_planner.py
+uv run python -m signalforge.cli.evaluate_planner
 ```
 
 Run retrieval golden-case evaluation:
 
 ```bash
-uv run python evaluate_retrieval.py
+uv run python -m signalforge.cli.evaluate_retrieval
 ```
 
 Run answer evaluation:
 
 ```bash
-uv run python evaluate_answers.py
+uv run python -m signalforge.cli.evaluate_answers
 ```
 
 You can run a single golden case with `--case-id`:
 
 ```bash
-uv run python evaluate_answers.py --case-id latest_risk_factors
+uv run python -m signalforge.cli.evaluate_answers --case-id latest_risk_factors
 ```
 
 ## Configuration
@@ -215,7 +218,7 @@ Default models:
 - Planner: `deepseek-v4-flash`
 - Answer generator: `deepseek-v4-flash`
 
-Most scripts expose flags for database path, Qdrant path, collection name, model names, and limits. Run any script with `--help` for the full set of options.
+Most CLI modules expose flags for database path, Qdrant path, collection name, model names, and limits. Run any command with `--help` for the full set of options.
 
 The FastAPI app also supports environment overrides:
 

@@ -3,8 +3,8 @@ import os
 
 from dotenv import load_dotenv
 
-from ingestion import ingest_sec_10k_filings
-from storage import connect_database
+from signalforge.ingestion import ingest_sec_10k_filings
+from signalforge.storage import connect_database
 
 
 def main() -> None:

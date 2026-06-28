@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from evaluate_planner import compare_plan
+from signalforge.cli.evaluate_planner import compare_plan
 
 
 DATASET_PATH = Path(__file__).parent / "fixtures" / "planner_golden.json"

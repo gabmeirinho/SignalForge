@@ -4,7 +4,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from query_planner import (
+from signalforge.query_planner import (
     DEFAULT_PLANNER_MODEL,
     PLANNER_PROMPT_VERSION,
     PLANNER_TEMPERATURE,

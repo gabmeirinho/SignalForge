@@ -2,7 +2,7 @@ import re
 
 from bs4 import BeautifulSoup, Tag
 
-from parser import clean_sec_html
+from signalforge.parser import clean_sec_html
 
 
 CROSS_REFERENCE_HEADING_RE = re.compile(

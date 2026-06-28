@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-import evaluate_retrieval
+import signalforge.cli.evaluate_retrieval as evaluate_retrieval
 
 
 def test_unavailable_specific_year_case_passes_without_retrieval(monkeypatch, capsys):
