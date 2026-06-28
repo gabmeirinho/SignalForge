@@ -22,7 +22,7 @@ export function SourcesPanel({ sources }: SourcesPanelProps) {
   }
 
   return (
-    <section className="panel sources-panel">
+    <section className="panel sources-panel" aria-label="Sources">
       <div className="panel-heading">
         <Files size={18} aria-hidden="true" />
         <h2>Sources</h2>

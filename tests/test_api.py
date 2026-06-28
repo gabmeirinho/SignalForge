@@ -146,3 +146,43 @@ def test_query_validates_and_shapes_response(monkeypatch, tmp_path):
     assert payload["plan"] is None
     assert payload["sources"][0]["text"] is None
     assert payload["sources"][0]["ticker"] == "NVDA"
+
+
+def test_query_passes_through_warnings_and_fallback_state(monkeypatch, tmp_path):
+    db_path = tmp_path / "signalforge.sqlite3"
+    qdrant_path = tmp_path / "qdrant"
+    db_path.touch()
+    qdrant_path.mkdir()
+    monkeypatch.setenv("SIGNALFORGE_DB_PATH", str(db_path))
+    monkeypatch.setenv("SIGNALFORGE_QDRANT_PATH", str(qdrant_path))
+
+    def fake_answer_question(question, **kwargs):
+        return QueryResponse(
+            question=question,
+            answer="Retrieved evidence is unavailable.",
+            plan=SearchPlan(
+                tickers=[],
+                sections=[],
+                semantic_queries=[question],
+                time_scope="latest",
+                intent="summary",
+                top_k=5,
+            ),
+            used_fallback=True,
+            planner_error="DEEPSEEK_API_KEY is not set; used local rule-based planner",
+            warnings=["no retrieved evidence", "llm answer generation unavailable"],
+            sources=[],
+        )
+
+    monkeypatch.setattr("api.answer_question", fake_answer_question)
+
+    response = TestClient(app).post(
+        "/api/query",
+        json={"question": "Summarize Intel risk factors."},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["used_fallback"] is True
+    assert payload["planner_error"] == "DEEPSEEK_API_KEY is not set; used local rule-based planner"
+    assert payload["warnings"] == ["no retrieved evidence", "llm answer generation unavailable"]

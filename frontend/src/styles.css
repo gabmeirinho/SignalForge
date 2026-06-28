@@ -331,6 +331,45 @@ button:focus-visible {
   margin: 0 0 12px;
 }
 
+.answer-text h1,
+.answer-text h2,
+.answer-text h3 {
+  margin: 18px 0 8px;
+  color: #111827;
+  line-height: 1.3;
+}
+
+.answer-text h1 {
+  font-size: 20px;
+}
+
+.answer-text h2 {
+  font-size: 18px;
+}
+
+.answer-text h3 {
+  font-size: 16px;
+}
+
+.answer-text ul,
+.answer-text ol {
+  margin: 0 0 14px 22px;
+  padding: 0;
+}
+
+.answer-text li {
+  margin: 0 0 8px;
+}
+
+.answer-text li > p {
+  margin-bottom: 8px;
+}
+
+.answer-text strong {
+  color: #111827;
+  font-weight: 700;
+}
+
 .planner-error,
 .sidebar-error {
   margin: 12px 0 0;

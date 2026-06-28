@@ -1,4 +1,6 @@
 import { AlertTriangle, FileText, Loader2 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { QueryResponse } from "../types";
 
 type AnswerPanelProps = {
@@ -68,9 +70,7 @@ export function AnswerPanel({ response, error, isLoading }: AnswerPanelProps) {
         </div>
       )}
       <div className="answer-text">
-        {response.answer.split("\n").map((line, index) => (
-          <p key={`${line}-${index}`}>{line}</p>
-        ))}
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{response.answer}</ReactMarkdown>
       </div>
       {response.planner_error && <p className="planner-error">{response.planner_error}</p>}
     </section>

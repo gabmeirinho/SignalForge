@@ -161,6 +161,13 @@ cd frontend
 npm run build
 ```
 
+Run frontend tests:
+
+```bash
+cd frontend
+npm test
+```
+
 ## Evaluation
 
 Run the unit test suite:
