@@ -257,6 +257,7 @@ def retrieve_chunks(
     accession_numbers: list[str] | None = None,
     accession_numbers_by_ticker: dict[str, list[str]] | None = None,
     intent: str = "summary",
+    time_scope: str = "latest",
 ) -> list[SearchResult]:
     tickers = [ticker.upper() for ticker in tickers or []]
     section_ids = [section_id.upper() for section_id in section_ids or []]
@@ -272,6 +273,22 @@ def retrieve_chunks(
             section_ids=section_ids,
             accession_numbers=accession_numbers,
             accession_numbers_by_ticker=accession_numbers_by_ticker,
+        )
+
+    if (
+        accession_numbers
+        and len(accession_numbers) > 1
+        and (intent == "trend" or time_scope in {"all_available", "latest_and_previous"})
+    ):
+        return retrieve_period_chunks(
+            client,
+            query=query,
+            collection_name=collection_name,
+            embedding_model=embedding_model,
+            limit=limit,
+            tickers=tickers,
+            section_ids=section_ids,
+            accession_numbers=accession_numbers,
         )
 
     results = []
@@ -291,6 +308,42 @@ def retrieve_chunks(
             )
 
     return _dedupe_results(results)[:limit]
+
+
+def retrieve_period_chunks(
+    client: QdrantClient,
+    *,
+    query: str,
+    collection_name: str,
+    embedding_model: str,
+    limit: int,
+    tickers: list[str],
+    section_ids: list[str],
+    accession_numbers: list[str],
+) -> list[SearchResult]:
+    per_accession_limit = max(1, ceil(limit / len(accession_numbers)))
+    results = []
+
+    for accession_number in accession_numbers:
+        accession_results = []
+        for ticker in tickers or [None]:
+            for section_id in section_ids or [None]:
+                accession_results.extend(
+                    semantic_search(
+                        client,
+                        query=query,
+                        collection_name=collection_name,
+                        embedding_model=embedding_model,
+                        limit=per_accession_limit,
+                        ticker=ticker,
+                        section_id=section_id,
+                        accession_numbers=[accession_number],
+                    )
+                )
+
+        results.extend(_dedupe_results(accession_results)[:per_accession_limit])
+
+    return _dedupe_results(results)
 
 
 def retrieve_comparison_chunks(
