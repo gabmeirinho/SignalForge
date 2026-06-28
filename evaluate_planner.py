@@ -4,7 +4,13 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from query_planner import DEFAULT_PLANNER_MODEL, DeepSeekQueryPlanner, PlannerContext
+from query_planner import (
+    DEFAULT_PLANNER_MODEL,
+    PLANNER_PROMPT_VERSION,
+    PLANNER_TEMPERATURE,
+    DeepSeekQueryPlanner,
+    PlannerContext,
+)
 
 
 DEFAULT_DATASET = Path("tests/fixtures/planner_golden.json")
@@ -16,6 +22,11 @@ def main() -> None:
     args = parse_args()
     cases = json.loads(args.dataset.read_text())
     planner = DeepSeekQueryPlanner.from_environment(model=args.model)
+
+    print(f"Model: {args.model}")
+    print(f"Temperature: {PLANNER_TEMPERATURE}")
+    print(f"Prompt version: {PLANNER_PROMPT_VERSION}")
+    print(f"Dataset: {args.dataset}\n")
 
     passed = 0
     for case in cases:

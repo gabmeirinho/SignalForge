@@ -10,6 +10,8 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 
 DEFAULT_PLANNER_MODEL = "deepseek-v4-flash"
 DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+PLANNER_PROMPT_VERSION = "planner-v1.2.0"
+PLANNER_TEMPERATURE = 0.0
 SUPPORTED_SECTIONS = ("1", "1A", "7", "7A")
 
 
@@ -29,7 +31,7 @@ class PlannerResponse(BaseModel):
 
     tickers: list[str] = Field(default_factory=list)
     sections: list[str] = Field(default_factory=list)
-    semantic_queries: list[str] = Field(min_length=1, max_length=3)
+    semantic_queries: list[str] = Field(max_length=3)
     time_scope: Literal["latest", "latest_and_previous", "all_available"] = "latest"
     intent: Literal["fact", "summary", "comparison", "trend"] = "summary"
     top_k: int = Field(default=5, ge=1, le=20)
@@ -125,7 +127,7 @@ class DeepSeekQueryPlanner:
             ],
             response_format={"type": "json_object"},
             max_tokens=800,
-            temperature=0.0,
+            temperature=PLANNER_TEMPERATURE,
             extra_body={"thinking": {"type": "disabled"}},
         )
         content = response.choices[0].message.content
@@ -150,6 +152,12 @@ def normalize_plan(
         ticker.upper() for ticker in plan.tickers if ticker.upper() in available_tickers
     )
     sections = _unique(section for section in plan.sections if section in available_sections)
+    if not sections:
+        sections = [
+            section
+            for section in _infer_sections_from_question(question)
+            if section in available_sections
+        ]
 
     queries = _unique(
         query.strip() for query in [question, *plan.semantic_queries] if query.strip()
@@ -176,6 +184,63 @@ def fallback_plan(question: str) -> SearchPlan:
         intent="summary",
         top_k=5,
     )
+
+
+def _infer_sections_from_question(question: str) -> list[str]:
+    question = question.lower()
+
+    if any(
+        term in question
+        for term in (
+            "market risk",
+            "interest rate",
+            "foreign currency",
+            "exchange rate",
+            "commodity price",
+            "credit risk",
+            "sensitivity analysis",
+        )
+    ):
+        return ["7A"]
+
+    if any(term in question for term in ("risk factor", "risk factors", "risks")):
+        return ["1A"]
+
+    if any(
+        term in question
+        for term in (
+            "md&a",
+            "management discussion",
+            "financial performance",
+            "revenue",
+            "expenses",
+            "margins",
+            "profitability",
+            "results of operations",
+            "liquidity",
+            "capital resources",
+            "cash flows",
+            "management outlook",
+        )
+    ):
+        return ["7"]
+
+    if any(
+        term in question
+        for term in (
+            "business overview",
+            "business",
+            "products",
+            "services",
+            "customers",
+            "segments",
+            "strategy",
+            "operations",
+        )
+    ):
+        return ["1"]
+
+    return []
 
 
 def _system_prompt() -> str:

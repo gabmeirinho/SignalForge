@@ -65,6 +65,34 @@ def test_deepseek_planner_falls_back_when_response_is_invalid():
     assert result.plan.time_scope == "latest"
 
 
+def test_deepseek_planner_accepts_empty_model_semantic_queries():
+    client = FakeClient(
+        {
+            "tickers": [],
+            "sections": [],
+            "semantic_queries": [],
+            "time_scope": "latest",
+            "intent": "summary",
+            "top_k": 5,
+        }
+    )
+    context = PlannerContext(
+        available_tickers=("AMD",),
+        available_sections=("1A",),
+        filing_years_by_ticker={"AMD": (2026,)},
+    )
+
+    result = DeepSeekQueryPlanner(client=client).create_plan(
+        "Summarize Intel's latest risks.",
+        context,
+    )
+
+    assert result.used_fallback is False
+    assert result.plan.tickers == []
+    assert result.plan.sections == ["1A"]
+    assert result.plan.semantic_queries == ["Summarize Intel's latest risks."]
+
+
 def test_deepseek_planner_retries_an_empty_response():
     client = EmptyThenValidClient()
     context = PlannerContext(
