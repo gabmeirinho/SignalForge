@@ -175,6 +175,56 @@
     }
   },
   {
+    "id": "two_company_market_risk_comparison",
+    "question": "Compare Microsoft's and Google's latest market risks.",
+    "context": {
+      "available_tickers": ["AMD", "AMZN", "AVGO", "GOOGL", "META", "MSFT", "MU", "NVDA", "QCOM"],
+      "available_sections": ["1", "1A", "7", "7A"],
+      "filing_years_by_ticker": {
+        "AMD": [2026, 2025, 2024, 2023, 2022],
+        "AMZN": [2026, 2025, 2024, 2023, 2022],
+        "AVGO": [2025, 2024, 2023, 2022, 2021],
+        "GOOGL": [2026, 2025, 2024, 2023, 2022],
+        "META": [2026, 2025, 2024, 2023, 2022],
+        "MSFT": [2025, 2024, 2023, 2022, 2021],
+        "MU": [2025, 2024, 2023, 2022, 2021],
+        "NVDA": [2026, 2025, 2024, 2023, 2022],
+        "QCOM": [2025, 2024, 2023, 2022, 2021]
+      }
+    },
+    "expected": {
+      "tickers": ["MSFT", "GOOGL"],
+      "sections": ["7A"],
+      "time_scope": "latest",
+      "intent": "comparison"
+    }
+  },
+  {
+    "id": "two_company_risk_summary",
+    "question": "Summarize the latest cybersecurity risk factors for Meta and Google.",
+    "context": {
+      "available_tickers": ["AMD", "AMZN", "AVGO", "GOOGL", "META", "MSFT", "MU", "NVDA", "QCOM"],
+      "available_sections": ["1", "1A", "7", "7A"],
+      "filing_years_by_ticker": {
+        "AMD": [2026, 2025, 2024, 2023, 2022],
+        "AMZN": [2026, 2025, 2024, 2023, 2022],
+        "AVGO": [2025, 2024, 2023, 2022, 2021],
+        "GOOGL": [2026, 2025, 2024, 2023, 2022],
+        "META": [2026, 2025, 2024, 2023, 2022],
+        "MSFT": [2025, 2024, 2023, 2022, 2021],
+        "MU": [2025, 2024, 2023, 2022, 2021],
+        "NVDA": [2026, 2025, 2024, 2023, 2022],
+        "QCOM": [2025, 2024, 2023, 2022, 2021]
+      }
+    },
+    "expected": {
+      "tickers": ["META", "GOOGL"],
+      "sections": ["1A"],
+      "time_scope": "latest",
+      "intent": "summary"
+    }
+  },
+  {
     "id": "previous_period",
     "question": "How did NVIDIA's revenue change from the previous filing?",
     "context": {
