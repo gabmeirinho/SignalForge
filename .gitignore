@@ -49,3 +49,6 @@ data/qdrant/
 *.jsonl
 *.parquet
 *.feather
+
+# Implementation Plan
+PLAN.md
