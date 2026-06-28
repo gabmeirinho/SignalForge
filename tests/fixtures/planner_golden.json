@@ -3,10 +3,18 @@
     "id": "latest_risk_factors",
     "question": "What are NVIDIA's latest risk factors?",
     "context": {
-      "available_tickers": ["NVDA"],
+      "available_tickers": ["AMD", "AMZN", "AVGO", "GOOGL", "META", "MSFT", "MU", "NVDA", "QCOM"],
       "available_sections": ["1", "1A", "7", "7A"],
       "filing_years_by_ticker": {
-        "NVDA": [2026]
+        "AMD": [2026, 2025, 2024, 2023, 2022],
+        "AMZN": [2026, 2025, 2024, 2023, 2022],
+        "AVGO": [2025, 2024, 2023, 2022, 2021],
+        "GOOGL": [2026, 2025, 2024, 2023, 2022],
+        "META": [2026, 2025, 2024, 2023, 2022],
+        "MSFT": [2025, 2024, 2023, 2022, 2021],
+        "MU": [2025, 2024, 2023, 2022, 2021],
+        "NVDA": [2026, 2025, 2024, 2023, 2022],
+        "QCOM": [2025, 2024, 2023, 2022, 2021]
       }
     },
     "expected": {
@@ -18,16 +26,24 @@
   },
   {
     "id": "business_overview",
-    "question": "What does NVIDIA's business do?",
+    "question": "What does Amazon's business do?",
     "context": {
-      "available_tickers": ["NVDA"],
+      "available_tickers": ["AMD", "AMZN", "AVGO", "GOOGL", "META", "MSFT", "MU", "NVDA", "QCOM"],
       "available_sections": ["1", "1A", "7", "7A"],
       "filing_years_by_ticker": {
-        "NVDA": [2026]
+        "AMD": [2026, 2025, 2024, 2023, 2022],
+        "AMZN": [2026, 2025, 2024, 2023, 2022],
+        "AVGO": [2025, 2024, 2023, 2022, 2021],
+        "GOOGL": [2026, 2025, 2024, 2023, 2022],
+        "META": [2026, 2025, 2024, 2023, 2022],
+        "MSFT": [2025, 2024, 2023, 2022, 2021],
+        "MU": [2025, 2024, 2023, 2022, 2021],
+        "NVDA": [2026, 2025, 2024, 2023, 2022],
+        "QCOM": [2025, 2024, 2023, 2022, 2021]
       }
     },
     "expected": {
-      "tickers": ["NVDA"],
+      "tickers": ["AMZN"],
       "sections": ["1"],
       "time_scope": "latest",
       "intent": "summary"
@@ -35,16 +51,24 @@
   },
   {
     "id": "management_discussion",
-    "question": "Summarize NVIDIA's financial performance and management outlook.",
+    "question": "Summarize Meta's financial performance and management outlook.",
     "context": {
-      "available_tickers": ["NVDA"],
+      "available_tickers": ["AMD", "AMZN", "AVGO", "GOOGL", "META", "MSFT", "MU", "NVDA", "QCOM"],
       "available_sections": ["1", "1A", "7", "7A"],
       "filing_years_by_ticker": {
-        "NVDA": [2026]
+        "AMD": [2026, 2025, 2024, 2023, 2022],
+        "AMZN": [2026, 2025, 2024, 2023, 2022],
+        "AVGO": [2025, 2024, 2023, 2022, 2021],
+        "GOOGL": [2026, 2025, 2024, 2023, 2022],
+        "META": [2026, 2025, 2024, 2023, 2022],
+        "MSFT": [2025, 2024, 2023, 2022, 2021],
+        "MU": [2025, 2024, 2023, 2022, 2021],
+        "NVDA": [2026, 2025, 2024, 2023, 2022],
+        "QCOM": [2025, 2024, 2023, 2022, 2021]
       }
     },
     "expected": {
-      "tickers": ["NVDA"],
+      "tickers": ["META"],
       "sections": ["7"],
       "time_scope": "latest",
       "intent": "summary"
@@ -52,16 +76,24 @@
   },
   {
     "id": "market_risk",
-    "question": "What market risks does NVIDIA report?",
+    "question": "What market risks does Microsoft report?",
     "context": {
-      "available_tickers": ["NVDA"],
+      "available_tickers": ["AMD", "AMZN", "AVGO", "GOOGL", "META", "MSFT", "MU", "NVDA", "QCOM"],
       "available_sections": ["1", "1A", "7", "7A"],
       "filing_years_by_ticker": {
-        "NVDA": [2026]
+        "AMD": [2026, 2025, 2024, 2023, 2022],
+        "AMZN": [2026, 2025, 2024, 2023, 2022],
+        "AVGO": [2025, 2024, 2023, 2022, 2021],
+        "GOOGL": [2026, 2025, 2024, 2023, 2022],
+        "META": [2026, 2025, 2024, 2023, 2022],
+        "MSFT": [2025, 2024, 2023, 2022, 2021],
+        "MU": [2025, 2024, 2023, 2022, 2021],
+        "NVDA": [2026, 2025, 2024, 2023, 2022],
+        "QCOM": [2025, 2024, 2023, 2022, 2021]
       }
     },
     "expected": {
-      "tickers": ["NVDA"],
+      "tickers": ["MSFT"],
       "sections": ["7A"],
       "time_scope": "latest",
       "intent": "summary"
@@ -69,16 +101,24 @@
   },
   {
     "id": "financial_fact",
-    "question": "What revenue did NVIDIA report?",
+    "question": "What revenue did AMD report?",
     "context": {
-      "available_tickers": ["NVDA"],
+      "available_tickers": ["AMD", "AMZN", "AVGO", "GOOGL", "META", "MSFT", "MU", "NVDA", "QCOM"],
       "available_sections": ["1", "1A", "7", "7A"],
       "filing_years_by_ticker": {
-        "NVDA": [2026]
+        "AMD": [2026, 2025, 2024, 2023, 2022],
+        "AMZN": [2026, 2025, 2024, 2023, 2022],
+        "AVGO": [2025, 2024, 2023, 2022, 2021],
+        "GOOGL": [2026, 2025, 2024, 2023, 2022],
+        "META": [2026, 2025, 2024, 2023, 2022],
+        "MSFT": [2025, 2024, 2023, 2022, 2021],
+        "MU": [2025, 2024, 2023, 2022, 2021],
+        "NVDA": [2026, 2025, 2024, 2023, 2022],
+        "QCOM": [2025, 2024, 2023, 2022, 2021]
       }
     },
     "expected": {
-      "tickers": ["NVDA"],
+      "tickers": ["AMD"],
       "sections": ["7"],
       "time_scope": "latest",
       "intent": "fact"
@@ -86,12 +126,20 @@
   },
   {
     "id": "unavailable_company",
-    "question": "Summarize AMD's latest risks.",
+    "question": "Summarize Intel's latest risks.",
     "context": {
-      "available_tickers": ["NVDA"],
+      "available_tickers": ["AMD", "AMZN", "AVGO", "GOOGL", "META", "MSFT", "MU", "NVDA", "QCOM"],
       "available_sections": ["1", "1A", "7", "7A"],
       "filing_years_by_ticker": {
-        "NVDA": [2026]
+        "AMD": [2026, 2025, 2024, 2023, 2022],
+        "AMZN": [2026, 2025, 2024, 2023, 2022],
+        "AVGO": [2025, 2024, 2023, 2022, 2021],
+        "GOOGL": [2026, 2025, 2024, 2023, 2022],
+        "META": [2026, 2025, 2024, 2023, 2022],
+        "MSFT": [2025, 2024, 2023, 2022, 2021],
+        "MU": [2025, 2024, 2023, 2022, 2021],
+        "NVDA": [2026, 2025, 2024, 2023, 2022],
+        "QCOM": [2025, 2024, 2023, 2022, 2021]
       }
     },
     "expected": {
@@ -102,53 +150,77 @@
     }
   },
   {
-    "id": "unavailable_company_comparison",
+    "id": "company_comparison",
     "question": "Compare NVIDIA and AMD's latest risk factors.",
     "context": {
-      "available_tickers": ["NVDA"],
+      "available_tickers": ["AMD", "AMZN", "AVGO", "GOOGL", "META", "MSFT", "MU", "NVDA", "QCOM"],
       "available_sections": ["1", "1A", "7", "7A"],
       "filing_years_by_ticker": {
-        "NVDA": [2026]
+        "AMD": [2026, 2025, 2024, 2023, 2022],
+        "AMZN": [2026, 2025, 2024, 2023, 2022],
+        "AVGO": [2025, 2024, 2023, 2022, 2021],
+        "GOOGL": [2026, 2025, 2024, 2023, 2022],
+        "META": [2026, 2025, 2024, 2023, 2022],
+        "MSFT": [2025, 2024, 2023, 2022, 2021],
+        "MU": [2025, 2024, 2023, 2022, 2021],
+        "NVDA": [2026, 2025, 2024, 2023, 2022],
+        "QCOM": [2025, 2024, 2023, 2022, 2021]
       }
     },
     "expected": {
-      "tickers": ["NVDA"],
+      "tickers": ["NVDA", "AMD"],
       "sections": ["1A"],
       "time_scope": "latest",
       "intent": "comparison"
     }
   },
   {
-    "id": "unavailable_previous_period",
+    "id": "previous_period",
     "question": "How did NVIDIA's revenue change from the previous filing?",
     "context": {
-      "available_tickers": ["NVDA"],
+      "available_tickers": ["AMD", "AMZN", "AVGO", "GOOGL", "META", "MSFT", "MU", "NVDA", "QCOM"],
       "available_sections": ["1", "1A", "7", "7A"],
       "filing_years_by_ticker": {
-        "NVDA": [2026]
+        "AMD": [2026, 2025, 2024, 2023, 2022],
+        "AMZN": [2026, 2025, 2024, 2023, 2022],
+        "AVGO": [2025, 2024, 2023, 2022, 2021],
+        "GOOGL": [2026, 2025, 2024, 2023, 2022],
+        "META": [2026, 2025, 2024, 2023, 2022],
+        "MSFT": [2025, 2024, 2023, 2022, 2021],
+        "MU": [2025, 2024, 2023, 2022, 2021],
+        "NVDA": [2026, 2025, 2024, 2023, 2022],
+        "QCOM": [2025, 2024, 2023, 2022, 2021]
       }
     },
     "expected": {
       "tickers": ["NVDA"],
       "sections": ["7"],
-      "time_scope": "latest",
+      "time_scope": "latest_and_previous",
       "intent": "comparison"
     }
   },
   {
-    "id": "unavailable_historical_trend",
-    "question": "How have NVIDIA's risk factors changed over time?",
+    "id": "historical_trend",
+    "question": "How have Qualcomm's risk factors changed over time?",
     "context": {
-      "available_tickers": ["NVDA"],
+      "available_tickers": ["AMD", "AMZN", "AVGO", "GOOGL", "META", "MSFT", "MU", "NVDA", "QCOM"],
       "available_sections": ["1", "1A", "7", "7A"],
       "filing_years_by_ticker": {
-        "NVDA": [2026]
+        "AMD": [2026, 2025, 2024, 2023, 2022],
+        "AMZN": [2026, 2025, 2024, 2023, 2022],
+        "AVGO": [2025, 2024, 2023, 2022, 2021],
+        "GOOGL": [2026, 2025, 2024, 2023, 2022],
+        "META": [2026, 2025, 2024, 2023, 2022],
+        "MSFT": [2025, 2024, 2023, 2022, 2021],
+        "MU": [2025, 2024, 2023, 2022, 2021],
+        "NVDA": [2026, 2025, 2024, 2023, 2022],
+        "QCOM": [2025, 2024, 2023, 2022, 2021]
       }
     },
     "expected": {
-      "tickers": ["NVDA"],
+      "tickers": ["QCOM"],
       "sections": ["1A"],
-      "time_scope": "latest",
+      "time_scope": "all_available",
       "intent": "trend"
     }
   }

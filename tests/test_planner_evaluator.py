@@ -14,13 +14,34 @@ def test_golden_dataset_has_unique_valid_cases():
 
     assert cases
     assert len({case["id"] for case in cases}) == len(cases)
+    expected_context = {
+        "available_tickers": [
+            "AMD",
+            "AMZN",
+            "AVGO",
+            "GOOGL",
+            "META",
+            "MSFT",
+            "MU",
+            "NVDA",
+            "QCOM",
+        ],
+        "available_sections": ["1", "1A", "7", "7A"],
+        "filing_years_by_ticker": {
+            "AMD": [2026, 2025, 2024, 2023, 2022],
+            "AMZN": [2026, 2025, 2024, 2023, 2022],
+            "AVGO": [2025, 2024, 2023, 2022, 2021],
+            "GOOGL": [2026, 2025, 2024, 2023, 2022],
+            "META": [2026, 2025, 2024, 2023, 2022],
+            "MSFT": [2025, 2024, 2023, 2022, 2021],
+            "MU": [2025, 2024, 2023, 2022, 2021],
+            "NVDA": [2026, 2025, 2024, 2023, 2022],
+            "QCOM": [2025, 2024, 2023, 2022, 2021],
+        },
+    }
     for case in cases:
         assert case["question"].strip()
-        assert case["context"] == {
-            "available_tickers": ["NVDA"],
-            "available_sections": ["1", "1A", "7", "7A"],
-            "filing_years_by_ticker": {"NVDA": [2026]},
-        }
+        assert case["context"] == expected_context
         assert set(case["expected"]) == {
             "tickers",
             "sections",
