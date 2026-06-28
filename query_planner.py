@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
@@ -10,9 +11,10 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 
 DEFAULT_PLANNER_MODEL = "deepseek-v4-flash"
 DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com"
-PLANNER_PROMPT_VERSION = "planner-v1.2.0"
+PLANNER_PROMPT_VERSION = "planner-v1.3.0"
 PLANNER_TEMPERATURE = 0.0
 SUPPORTED_SECTIONS = ("1", "1A", "7", "7A")
+TIME_SCOPES = ("latest", "latest_and_previous", "all_available", "specific_years")
 
 
 class SearchPlan(BaseModel):
@@ -21,7 +23,10 @@ class SearchPlan(BaseModel):
     tickers: list[str] = Field(default_factory=list)
     sections: list[Literal["1", "1A", "7", "7A"]] = Field(default_factory=list)
     semantic_queries: list[str] = Field(min_length=1, max_length=4)
-    time_scope: Literal["latest", "latest_and_previous", "all_available"] = "latest"
+    time_scope: Literal[
+        "latest", "latest_and_previous", "all_available", "specific_years"
+    ] = "latest"
+    filing_years: list[int] = Field(default_factory=list)
     intent: Literal["fact", "summary", "comparison", "trend"] = "summary"
     top_k: int = Field(default=5, ge=1, le=20)
 
@@ -32,7 +37,10 @@ class PlannerResponse(BaseModel):
     tickers: list[str] = Field(default_factory=list)
     sections: list[str] = Field(default_factory=list)
     semantic_queries: list[str] = Field(max_length=3)
-    time_scope: Literal["latest", "latest_and_previous", "all_available"] = "latest"
+    time_scope: Literal[
+        "latest", "latest_and_previous", "all_available", "specific_years"
+    ] = "latest"
+    filing_years: list[int] = Field(default_factory=list)
     intent: Literal["fact", "summary", "comparison", "trend"] = "summary"
     top_k: int = Field(default=5, ge=1, le=20)
 
@@ -152,23 +160,27 @@ def normalize_plan(
         ticker.upper() for ticker in plan.tickers if ticker.upper() in available_tickers
     )
     sections = _unique(section for section in plan.sections if section in available_sections)
-    if not sections:
-        sections = [
-            section
-            for section in _infer_sections_from_question(question)
-            if section in available_sections
-        ]
+    inferred_sections = _infer_sections_from_question(question)
+    if inferred_sections is not None:
+        sections = [section for section in inferred_sections if section in available_sections]
 
     queries = _unique(
         query.strip() for query in [question, *plan.semantic_queries] if query.strip()
     )[:4]
+    time_scope, filing_years = _normalize_time_scope(
+        plan=plan,
+        question=question,
+        tickers=tickers,
+        context=context,
+    )
 
     return SearchPlan(
         tickers=tickers,
         sections=sections,
         semantic_queries=queries,
-        time_scope=plan.time_scope,
-        intent=plan.intent,
+        time_scope=time_scope,
+        filing_years=filing_years,
+        intent=_normalize_intent(plan.intent, question),
         top_k=plan.top_k,
     )
 
@@ -181,13 +193,102 @@ def fallback_plan(question: str) -> SearchPlan:
     return SearchPlan(
         semantic_queries=[question],
         time_scope="latest",
+        filing_years=[],
         intent="summary",
         top_k=5,
     )
 
 
-def _infer_sections_from_question(question: str) -> list[str]:
+def _normalize_time_scope(
+    *,
+    plan: PlannerResponse,
+    question: str,
+    tickers: list[str],
+    context: PlannerContext,
+) -> tuple[str, list[int]]:
+    available_years = _available_years_for_tickers(tickers, context)
+    has_specific_year_request = _question_requests_specific_years(question)
+    requested_years = _unique_ints(plan.filing_years) if has_specific_year_request else []
+    inferred_years = _infer_filing_years_from_question(question, available_years)
+
+    if requested_years or inferred_years:
+        years = requested_years or inferred_years
+        return "specific_years", [year for year in years if year in available_years]
+
+    if plan.time_scope == "specific_years":
+        return "all_available" if plan.intent == "trend" else "latest", []
+
+    return plan.time_scope, []
+
+
+def _available_years_for_tickers(tickers: list[str], context: PlannerContext) -> set[int]:
+    if tickers:
+        years = set()
+        for ticker in tickers:
+            years.update(context.filing_years_by_ticker.get(ticker, ()))
+        return years
+
+    years = set()
+    for ticker_years in context.filing_years_by_ticker.values():
+        years.update(ticker_years)
+    return years
+
+
+def _infer_filing_years_from_question(question: str, available_years: set[int]) -> list[int]:
     question = question.lower()
+    if "oldest" in question or "earliest" in question:
+        return [min(available_years)] if available_years else []
+
+    range_match = re.search(r"\b(20\d{2})\b\s+(?:and|to|-|through)\s+\b(20\d{2})\b", question)
+    if range_match:
+        start, end = sorted(int(year) for year in range_match.groups())
+        return list(range(start, end + 1))
+
+    return _unique_ints(int(year) for year in re.findall(r"\b(20\d{2})\b", question))
+
+
+def _question_requests_specific_years(question: str) -> bool:
+    question = question.lower()
+    return (
+        "oldest" in question
+        or "earliest" in question
+        or re.search(r"\b20\d{2}\b", question) is not None
+    )
+
+
+def _unique_ints(values) -> list[int]:
+    result = []
+    seen = set()
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result
+
+
+def _infer_sections_from_question(question: str) -> list[str] | None:
+    question = question.lower()
+    item_match = re.search(r"\bitem\s+(\d+[a-z]?)\b", question)
+    if item_match:
+        item = item_match.group(1).upper()
+        return [item] if item in SUPPORTED_SECTIONS else []
+
+    sections = []
+
+    if any(
+        term in question
+        for term in (
+            "business overview",
+            "business description",
+            "products",
+            "services",
+            "customers",
+            "strategy",
+            "operations",
+        )
+    ):
+        sections.append("1")
 
     if any(
         term in question
@@ -201,10 +302,12 @@ def _infer_sections_from_question(question: str) -> list[str]:
             "sensitivity analysis",
         )
     ):
-        return ["7A"]
+        sections.append("7A")
 
-    if any(term in question for term in ("risk factor", "risk factors", "risks")):
-        return ["1A"]
+    if any(term in question for term in ("risk factor", "risk factors")):
+        sections.append("1A")
+    elif "risks" in question and "7A" not in sections:
+        sections.append("1A")
 
     if any(
         term in question
@@ -223,24 +326,22 @@ def _infer_sections_from_question(question: str) -> list[str]:
             "management outlook",
         )
     ):
-        return ["7"]
+        sections.append("7")
 
-    if any(
-        term in question
-        for term in (
-            "business overview",
-            "business",
-            "products",
-            "services",
-            "customers",
-            "segments",
-            "strategy",
-            "operations",
-        )
-    ):
+    if sections:
+        return _unique(sections)
+
+    if "business" in question:
         return ["1"]
 
-    return []
+    return None
+
+
+def _normalize_intent(intent: str, question: str) -> str:
+    question = question.lower()
+    if any(term in question for term in ("table", "tables", "what revenue", "how much")):
+        return "fact"
+    return intent
 
 
 def _system_prompt() -> str:
@@ -275,8 +376,13 @@ Rules:
   period and at least two filing years are available for the selected ticker.
 - Use "all_available" for historical trends only when at least two filing years
   are available for the selected ticker.
-- If the user requests a period that is not available, use "latest" while preserving
-  the user's comparison or trend intent. Never invent a missing filing period.
+- Use "specific_years" when the user asks for a specific filing year, a specific
+  range of filing years, or the oldest/earliest available filing.
+- Populate "filing_years" only with years available for the selected ticker.
+- If the user asks for the oldest or earliest available filing, use
+  "specific_years" and the oldest available year for the selected ticker.
+- If the user requests a period that is not available, use "specific_years" with
+  an empty "filing_years" list. Never invent a missing filing period.
 - Use intent "fact" when the user asks for a specific reported value, metric,
   amount, figure, date, or number.
 - Use intent "summary" when the user asks to summarize, describe, explain, or
@@ -291,6 +397,7 @@ Required JSON shape:
   "sections": ["1A", "7"],
   "semantic_queries": ["supply chain risks", "supplier dependency and shortages"],
   "time_scope": "latest",
+  "filing_years": [],
   "intent": "summary",
   "top_k": 8
 }

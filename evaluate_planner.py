@@ -14,7 +14,7 @@ from query_planner import (
 
 
 DEFAULT_DATASET = Path("tests/fixtures/planner_golden.json")
-SET_FIELDS = {"tickers", "sections"}
+SET_FIELDS = {"tickers", "sections", "filing_years"}
 
 
 def main() -> None:

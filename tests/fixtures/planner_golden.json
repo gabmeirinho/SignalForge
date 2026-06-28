@@ -223,5 +223,259 @@
       "time_scope": "all_available",
       "intent": "trend"
     }
+  },
+  {
+    "id": "specific_historical_year",
+    "question": "What business operations did Broadcom report in 2022?",
+    "context": {
+      "available_tickers": ["AMD", "AMZN", "AVGO", "GOOGL", "META", "MSFT", "MU", "NVDA", "QCOM"],
+      "available_sections": ["1", "1A", "7", "7A"],
+      "filing_years_by_ticker": {
+        "AMD": [2026, 2025, 2024, 2023, 2022],
+        "AMZN": [2026, 2025, 2024, 2023, 2022],
+        "AVGO": [2025, 2024, 2023, 2022, 2021],
+        "GOOGL": [2026, 2025, 2024, 2023, 2022],
+        "META": [2026, 2025, 2024, 2023, 2022],
+        "MSFT": [2025, 2024, 2023, 2022, 2021],
+        "MU": [2025, 2024, 2023, 2022, 2021],
+        "NVDA": [2026, 2025, 2024, 2023, 2022],
+        "QCOM": [2025, 2024, 2023, 2022, 2021]
+      }
+    },
+    "expected": {
+      "tickers": ["AVGO"],
+      "sections": ["1"],
+      "time_scope": "specific_years",
+      "filing_years": [2022],
+      "intent": "summary"
+    }
+  },
+  {
+    "id": "unavailable_year",
+    "question": "Show me Microsoft's risk factors from 2026.",
+    "context": {
+      "available_tickers": ["AMD", "AMZN", "AVGO", "GOOGL", "META", "MSFT", "MU", "NVDA", "QCOM"],
+      "available_sections": ["1", "1A", "7", "7A"],
+      "filing_years_by_ticker": {
+        "AMD": [2026, 2025, 2024, 2023, 2022],
+        "AMZN": [2026, 2025, 2024, 2023, 2022],
+        "AVGO": [2025, 2024, 2023, 2022, 2021],
+        "GOOGL": [2026, 2025, 2024, 2023, 2022],
+        "META": [2026, 2025, 2024, 2023, 2022],
+        "MSFT": [2025, 2024, 2023, 2022, 2021],
+        "MU": [2025, 2024, 2023, 2022, 2021],
+        "NVDA": [2026, 2025, 2024, 2023, 2022],
+        "QCOM": [2025, 2024, 2023, 2022, 2021]
+      }
+    },
+    "expected": {
+      "tickers": ["MSFT"],
+      "sections": ["1A"],
+      "time_scope": "specific_years",
+      "filing_years": [],
+      "intent": "summary"
+    }
+  },
+  {
+    "id": "multi_ticker_financial_comparison",
+    "question": "Compare the latest MD&A segments for Alphabet, Meta, and Amazon.",
+    "context": {
+      "available_tickers": ["AMD", "AMZN", "AVGO", "GOOGL", "META", "MSFT", "MU", "NVDA", "QCOM"],
+      "available_sections": ["1", "1A", "7", "7A"],
+      "filing_years_by_ticker": {
+        "AMD": [2026, 2025, 2024, 2023, 2022],
+        "AMZN": [2026, 2025, 2024, 2023, 2022],
+        "AVGO": [2025, 2024, 2023, 2022, 2021],
+        "GOOGL": [2026, 2025, 2024, 2023, 2022],
+        "META": [2026, 2025, 2024, 2023, 2022],
+        "MSFT": [2025, 2024, 2023, 2022, 2021],
+        "MU": [2025, 2024, 2023, 2022, 2021],
+        "NVDA": [2026, 2025, 2024, 2023, 2022],
+        "QCOM": [2025, 2024, 2023, 2022, 2021]
+      }
+    },
+    "expected": {
+      "tickers": ["GOOGL", "META", "AMZN"],
+      "sections": ["7"],
+      "time_scope": "latest",
+      "intent": "comparison"
+    }
+  },
+  {
+    "id": "multi_section_single_ticker",
+    "question": "Give me a complete overview of Micron's business description and market risks from their latest filing.",
+    "context": {
+      "available_tickers": ["AMD", "AMZN", "AVGO", "GOOGL", "META", "MSFT", "MU", "NVDA", "QCOM"],
+      "available_sections": ["1", "1A", "7", "7A"],
+      "filing_years_by_ticker": {
+        "AMD": [2026, 2025, 2024, 2023, 2022],
+        "AMZN": [2026, 2025, 2024, 2023, 2022],
+        "AVGO": [2025, 2024, 2023, 2022, 2021],
+        "GOOGL": [2026, 2025, 2024, 2023, 2022],
+        "META": [2026, 2025, 2024, 2023, 2022],
+        "MSFT": [2025, 2024, 2023, 2022, 2021],
+        "MU": [2025, 2024, 2023, 2022, 2021],
+        "NVDA": [2026, 2025, 2024, 2023, 2022],
+        "QCOM": [2025, 2024, 2023, 2022, 2021]
+      }
+    },
+    "expected": {
+      "tickers": ["MU"],
+      "sections": ["1", "7A"],
+      "time_scope": "latest",
+      "intent": "summary"
+    }
+  },
+  {
+    "id": "historical_range_trend",
+    "question": "How did AMD's reported market risks evolve between 2022 and 2024?",
+    "context": {
+      "available_tickers": ["AMD", "AMZN", "AVGO", "GOOGL", "META", "MSFT", "MU", "NVDA", "QCOM"],
+      "available_sections": ["1", "1A", "7", "7A"],
+      "filing_years_by_ticker": {
+        "AMD": [2026, 2025, 2024, 2023, 2022],
+        "AMZN": [2026, 2025, 2024, 2023, 2022],
+        "AVGO": [2025, 2024, 2023, 2022, 2021],
+        "GOOGL": [2026, 2025, 2024, 2023, 2022],
+        "META": [2026, 2025, 2024, 2023, 2022],
+        "MSFT": [2025, 2024, 2023, 2022, 2021],
+        "MU": [2025, 2024, 2023, 2022, 2021],
+        "NVDA": [2026, 2025, 2024, 2023, 2022],
+        "QCOM": [2025, 2024, 2023, 2022, 2021]
+      }
+    },
+    "expected": {
+      "tickers": ["AMD"],
+      "sections": ["7A"],
+      "time_scope": "specific_years",
+      "filing_years": [2022, 2023, 2024],
+      "intent": "trend"
+    }
+  },
+  {
+    "id": "ticker_alias_resolution",
+    "question": "What macro trends are impacting Google's parent company in their latest Item 7?",
+    "context": {
+      "available_tickers": ["AMD", "AMZN", "AVGO", "GOOGL", "META", "MSFT", "MU", "NVDA", "QCOM"],
+      "available_sections": ["1", "1A", "7", "7A"],
+      "filing_years_by_ticker": {
+        "AMD": [2026, 2025, 2024, 2023, 2022],
+        "AMZN": [2026, 2025, 2024, 2023, 2022],
+        "AVGO": [2025, 2024, 2023, 2022, 2021],
+        "GOOGL": [2026, 2025, 2024, 2023, 2022],
+        "META": [2026, 2025, 2024, 2023, 2022],
+        "MSFT": [2025, 2024, 2023, 2022, 2021],
+        "MU": [2025, 2024, 2023, 2022, 2021],
+        "NVDA": [2026, 2025, 2024, 2023, 2022],
+        "QCOM": [2025, 2024, 2023, 2022, 2021]
+      }
+    },
+    "expected": {
+      "tickers": ["GOOGL"],
+      "sections": ["7"],
+      "time_scope": "latest",
+      "intent": "summary"
+    }
+  },
+  {
+    "id": "all_tickers_cross_section",
+    "question": "Extract the product descriptions for all available semiconductor firms in their latest 10-K.",
+    "context": {
+      "available_tickers": ["AMD", "AMZN", "AVGO", "GOOGL", "META", "MSFT", "MU", "NVDA", "QCOM"],
+      "available_sections": ["1", "1A", "7", "7A"],
+      "filing_years_by_ticker": {
+        "AMD": [2026, 2025, 2024, 2023, 2022],
+        "AMZN": [2026, 2025, 2024, 2023, 2022],
+        "AVGO": [2025, 2024, 2023, 2022, 2021],
+        "GOOGL": [2026, 2025, 2024, 2023, 2022],
+        "META": [2026, 2025, 2024, 2023, 2022],
+        "MSFT": [2025, 2024, 2023, 2022, 2021],
+        "MU": [2025, 2024, 2023, 2022, 2021],
+        "NVDA": [2026, 2025, 2024, 2023, 2022],
+        "QCOM": [2025, 2024, 2023, 2022, 2021]
+      }
+    },
+    "expected": {
+      "tickers": ["AMD", "AVGO", "MU", "NVDA", "QCOM"],
+      "sections": ["1"],
+      "time_scope": "latest",
+      "intent": "fact"
+    }
+  },
+  {
+    "id": "out_of_scope_section",
+    "question": "Can you show me the executive compensation tables (Item 11) for NVIDIA?",
+    "context": {
+      "available_tickers": ["AMD", "AMZN", "AVGO", "GOOGL", "META", "MSFT", "MU", "NVDA", "QCOM"],
+      "available_sections": ["1", "1A", "7", "7A"],
+      "filing_years_by_ticker": {
+        "AMD": [2026, 2025, 2024, 2023, 2022],
+        "AMZN": [2026, 2025, 2024, 2023, 2022],
+        "AVGO": [2025, 2024, 2023, 2022, 2021],
+        "GOOGL": [2026, 2025, 2024, 2023, 2022],
+        "META": [2026, 2025, 2024, 2023, 2022],
+        "MSFT": [2025, 2024, 2023, 2022, 2021],
+        "MU": [2025, 2024, 2023, 2022, 2021],
+        "NVDA": [2026, 2025, 2024, 2023, 2022],
+        "QCOM": [2025, 2024, 2023, 2022, 2021]
+      }
+    },
+    "expected": {
+      "tickers": ["NVDA"],
+      "sections": [],
+      "time_scope": "latest",
+      "intent": "fact"
+    }
+  },
+  {
+    "id": "earliest_available_period",
+    "question": "What were Amazon's primary risk concerns in the oldest filing available in the system?",
+    "context": {
+      "available_tickers": ["AMD", "AMZN", "AVGO", "GOOGL", "META", "MSFT", "MU", "NVDA", "QCOM"],
+      "available_sections": ["1", "1A", "7", "7A"],
+      "filing_years_by_ticker": {
+        "AMD": [2026, 2025, 2024, 2023, 2022],
+        "AMZN": [2026, 2025, 2024, 2023, 2022],
+        "AVGO": [2025, 2024, 2023, 2022, 2021],
+        "GOOGL": [2026, 2025, 2024, 2023, 2022],
+        "META": [2026, 2025, 2024, 2023, 2022],
+        "MSFT": [2025, 2024, 2023, 2022, 2021],
+        "MU": [2025, 2024, 2023, 2022, 2021],
+        "NVDA": [2026, 2025, 2024, 2023, 2022],
+        "QCOM": [2025, 2024, 2023, 2022, 2021]
+      }
+    },
+    "expected": {
+      "tickers": ["AMZN"],
+      "sections": ["1A"],
+      "time_scope": "specific_years",
+      "filing_years": [2022],
+      "intent": "summary"
+    }
+  },
+  {
+    "id": "completely_irrelevant_query",
+    "question": "What are the recipe ingredients for a traditional Portuguese pastel de nata?",
+    "context": {
+      "available_tickers": ["AMD", "AMZN", "AVGO", "GOOGL", "META", "MSFT", "MU", "NVDA", "QCOM"],
+      "available_sections": ["1", "1A", "7", "7A"],
+      "filing_years_by_ticker": {
+        "AMD": [2026, 2025, 2024, 2023, 2022],
+        "AMZN": [2026, 2025, 2024, 2023, 2022],
+        "AVGO": [2025, 2024, 2023, 2022, 2021],
+        "GOOGL": [2026, 2025, 2024, 2023, 2022],
+        "META": [2026, 2025, 2024, 2023, 2022],
+        "MSFT": [2025, 2024, 2023, 2022, 2021],
+        "MU": [2025, 2024, 2023, 2022, 2021],
+        "NVDA": [2026, 2025, 2024, 2023, 2022],
+        "QCOM": [2025, 2024, 2023, 2022, 2021]
+      }
+    },
+    "expected": {
+      "tickers": [],
+      "sections": [],
+      "time_scope": "latest",
+      "intent": "summary"
+    }
   }
 ]

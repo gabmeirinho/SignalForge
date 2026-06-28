@@ -1,5 +1,18 @@
 # Planner Prompt Changelog
 
+## planner-v1.3.0
+
+- Added structured specific-year planning with `time_scope: "specific_years"`
+  and `filing_years`.
+- Added guidance for explicit filing years, year ranges, unavailable requested
+  years, and oldest/earliest available filing requests.
+- Added normalization for unsupported SEC item sections, market-risk vs
+  risk-factor section selection, and open-ended historical trends.
+- Model: deepseek-v4-flash
+- Temperature: 0.0
+- Dataset: tests/fixtures/planner_golden.json
+- Evaluation: 19/19 on 2026-06-28
+
 ## planner-v1.2.0
 
 - Added explicit mappings for sections 1, 1A, 7, and 7A.

@@ -42,12 +42,18 @@ def test_golden_dataset_has_unique_valid_cases():
     for case in cases:
         assert case["question"].strip()
         assert case["context"] == expected_context
-        assert set(case["expected"]) == {
-            "tickers",
-            "sections",
-            "time_scope",
-            "intent",
-        }
+        assert set(case["expected"]).issubset(
+            {
+                "tickers",
+                "sections",
+                "time_scope",
+                "filing_years",
+                "intent",
+            }
+        )
+        assert {"tickers", "sections", "time_scope", "intent"}.issubset(
+            case["expected"]
+        )
 
 
 def test_compare_plan_ignores_ticker_and_section_order():
@@ -55,12 +61,14 @@ def test_compare_plan_ignores_ticker_and_section_order():
         "tickers": ["NVDA", "AMD"],
         "sections": ["7", "1A"],
         "time_scope": "latest",
+        "filing_years": [2024, 2022],
         "intent": "comparison",
     }
     expected = {
         "tickers": ["AMD", "NVDA"],
         "sections": ["1A", "7"],
         "time_scope": "latest",
+        "filing_years": [2022, 2024],
         "intent": "comparison",
     }
 
@@ -73,6 +81,7 @@ def test_compare_plan_ignores_ticker_and_section_order():
         ("tickers", ["AMD"], ["NVDA"]),
         ("sections", ["1"], ["1A"]),
         ("time_scope", "latest", "all_available"),
+        ("filing_years", [2025], [2024]),
         ("intent", "summary", "trend"),
     ],
 )

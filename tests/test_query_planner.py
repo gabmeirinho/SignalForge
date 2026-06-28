@@ -33,7 +33,7 @@ def test_deepseek_planner_returns_normalized_plan():
     assert result.used_fallback is False
     assert result.error is None
     assert result.plan.tickers == ["NVDA"]
-    assert result.plan.sections == ["1A", "7"]
+    assert result.plan.sections == ["1A"]
     assert result.plan.semantic_queries == [
         "What are NVIDIA's latest supply-chain risks?",
         "supplier dependency",
@@ -41,6 +41,7 @@ def test_deepseek_planner_returns_normalized_plan():
     ]
     assert client.request["model"] == "deepseek-v4-flash"
     assert client.request["response_format"] == {"type": "json_object"}
+    assert client.request["temperature"] == 0.0
     assert client.request["extra_body"] == {"thinking": {"type": "disabled"}}
 
 
@@ -91,6 +92,169 @@ def test_deepseek_planner_accepts_empty_model_semantic_queries():
     assert result.plan.tickers == []
     assert result.plan.sections == ["1A"]
     assert result.plan.semantic_queries == ["Summarize Intel's latest risks."]
+
+
+def test_deepseek_planner_normalizes_specific_filing_years():
+    client = FakeClient(
+        {
+            "tickers": ["AVGO"],
+            "sections": ["1"],
+            "semantic_queries": ["Broadcom business operations"],
+            "time_scope": "specific_years",
+            "filing_years": [2022],
+            "intent": "fact",
+            "top_k": 5,
+        }
+    )
+    context = PlannerContext(
+        available_tickers=("AVGO",),
+        available_sections=("1",),
+        filing_years_by_ticker={"AVGO": (2025, 2024, 2023, 2022, 2021)},
+    )
+
+    result = DeepSeekQueryPlanner(client=client).create_plan(
+        "What business operations did Broadcom report in 2022?",
+        context,
+    )
+
+    assert result.used_fallback is False
+    assert result.plan.time_scope == "specific_years"
+    assert result.plan.filing_years == [2022]
+
+
+def test_deepseek_planner_filters_unavailable_specific_filing_years():
+    client = FakeClient(
+        {
+            "tickers": ["MSFT"],
+            "sections": ["1A"],
+            "semantic_queries": ["Microsoft risk factors"],
+            "time_scope": "specific_years",
+            "filing_years": [2026],
+            "intent": "summary",
+            "top_k": 5,
+        }
+    )
+    context = PlannerContext(
+        available_tickers=("MSFT",),
+        available_sections=("1A",),
+        filing_years_by_ticker={"MSFT": (2025, 2024, 2023, 2022, 2021)},
+    )
+
+    result = DeepSeekQueryPlanner(client=client).create_plan(
+        "Show me Microsoft's risk factors from 2026.",
+        context,
+    )
+
+    assert result.used_fallback is False
+    assert result.plan.time_scope == "specific_years"
+    assert result.plan.filing_years == []
+
+
+def test_deepseek_planner_infers_oldest_available_filing_year():
+    client = FakeClient(
+        {
+            "tickers": ["AMZN"],
+            "sections": ["1A"],
+            "semantic_queries": ["Amazon primary risk concerns"],
+            "time_scope": "latest",
+            "intent": "summary",
+            "top_k": 5,
+        }
+    )
+    context = PlannerContext(
+        available_tickers=("AMZN",),
+        available_sections=("1A",),
+        filing_years_by_ticker={"AMZN": (2026, 2025, 2024, 2023, 2022)},
+    )
+
+    result = DeepSeekQueryPlanner(client=client).create_plan(
+        "What were Amazon's primary risk concerns in the oldest filing available in the system?",
+        context,
+    )
+
+    assert result.used_fallback is False
+    assert result.plan.time_scope == "specific_years"
+    assert result.plan.filing_years == [2022]
+
+
+def test_deepseek_planner_keeps_open_ended_trends_all_available():
+    client = FakeClient(
+        {
+            "tickers": ["QCOM"],
+            "sections": ["1A"],
+            "semantic_queries": ["Qualcomm risk factors changed over time"],
+            "time_scope": "specific_years",
+            "intent": "trend",
+            "top_k": 5,
+        }
+    )
+    context = PlannerContext(
+        available_tickers=("QCOM",),
+        available_sections=("1A",),
+        filing_years_by_ticker={"QCOM": (2025, 2024, 2023, 2022, 2021)},
+    )
+
+    result = DeepSeekQueryPlanner(client=client).create_plan(
+        "How have Qualcomm's risk factors changed over time?",
+        context,
+    )
+
+    assert result.used_fallback is False
+    assert result.plan.time_scope == "all_available"
+    assert result.plan.filing_years == []
+
+
+def test_deepseek_planner_distinguishes_market_risks_from_risk_factors():
+    client = FakeClient(
+        {
+            "tickers": ["MU"],
+            "sections": ["1", "1A"],
+            "semantic_queries": ["Micron business description and market risks"],
+            "time_scope": "latest",
+            "intent": "summary",
+            "top_k": 5,
+        }
+    )
+    context = PlannerContext(
+        available_tickers=("MU",),
+        available_sections=("1", "1A", "7A"),
+        filing_years_by_ticker={"MU": (2025, 2024, 2023, 2022, 2021)},
+    )
+
+    result = DeepSeekQueryPlanner(client=client).create_plan(
+        "Give me a complete overview of Micron's business description and market risks from their latest filing.",
+        context,
+    )
+
+    assert result.used_fallback is False
+    assert result.plan.sections == ["1", "7A"]
+
+
+def test_deepseek_planner_drops_unsupported_item_sections():
+    client = FakeClient(
+        {
+            "tickers": ["NVDA"],
+            "sections": ["1", "1A", "7", "7A"],
+            "semantic_queries": ["NVIDIA executive compensation tables"],
+            "time_scope": "latest",
+            "intent": "summary",
+            "top_k": 5,
+        }
+    )
+    context = PlannerContext(
+        available_tickers=("NVDA",),
+        available_sections=("1", "1A", "7", "7A"),
+        filing_years_by_ticker={"NVDA": (2026, 2025, 2024, 2023, 2022)},
+    )
+
+    result = DeepSeekQueryPlanner(client=client).create_plan(
+        "Can you show me the executive compensation tables (Item 11) for NVIDIA?",
+        context,
+    )
+
+    assert result.used_fallback is False
+    assert result.plan.sections == []
+    assert result.plan.intent == "fact"
 
 
 def test_deepseek_planner_retries_an_empty_response():
