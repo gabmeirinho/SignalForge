@@ -1,6 +1,7 @@
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass
+from math import ceil
 from pathlib import Path
 from typing import Callable, Iterable
 
@@ -242,6 +243,166 @@ def semantic_search(
     return [
         SearchResult(score=point.score, payload=point.payload or {}) for point in response.points
     ]
+
+
+def retrieve_chunks(
+    client: QdrantClient,
+    *,
+    query: str,
+    collection_name: str = DEFAULT_COLLECTION,
+    embedding_model: str = DEFAULT_EMBEDDING_MODEL,
+    limit: int = 5,
+    tickers: list[str] | None = None,
+    section_ids: list[str] | None = None,
+    accession_numbers: list[str] | None = None,
+    accession_numbers_by_ticker: dict[str, list[str]] | None = None,
+    intent: str = "summary",
+    time_scope: str = "latest",
+) -> list[SearchResult]:
+    tickers = [ticker.upper() for ticker in tickers or []]
+    section_ids = [section_id.upper() for section_id in section_ids or []]
+
+    if intent == "comparison" and len(tickers) > 1:
+        return retrieve_comparison_chunks(
+            client,
+            query=query,
+            collection_name=collection_name,
+            embedding_model=embedding_model,
+            limit=limit,
+            tickers=tickers,
+            section_ids=section_ids,
+            accession_numbers=accession_numbers,
+            accession_numbers_by_ticker=accession_numbers_by_ticker,
+        )
+
+    if (
+        accession_numbers
+        and len(accession_numbers) > 1
+        and (intent == "trend" or time_scope in {"all_available", "latest_and_previous"})
+    ):
+        return retrieve_period_chunks(
+            client,
+            query=query,
+            collection_name=collection_name,
+            embedding_model=embedding_model,
+            limit=limit,
+            tickers=tickers,
+            section_ids=section_ids,
+            accession_numbers=accession_numbers,
+        )
+
+    results = []
+    for ticker in tickers or [None]:
+        for section_id in section_ids or [None]:
+            results.extend(
+                semantic_search(
+                    client,
+                    query=query,
+                    collection_name=collection_name,
+                    embedding_model=embedding_model,
+                    limit=limit,
+                    ticker=ticker,
+                    section_id=section_id,
+                    accession_numbers=accession_numbers,
+                )
+            )
+
+    return _dedupe_results(results)[:limit]
+
+
+def retrieve_period_chunks(
+    client: QdrantClient,
+    *,
+    query: str,
+    collection_name: str,
+    embedding_model: str,
+    limit: int,
+    tickers: list[str],
+    section_ids: list[str],
+    accession_numbers: list[str],
+) -> list[SearchResult]:
+    per_accession_limit = max(1, ceil(limit / len(accession_numbers)))
+    results = []
+
+    for accession_number in accession_numbers:
+        accession_results = []
+        for ticker in tickers or [None]:
+            for section_id in section_ids or [None]:
+                accession_results.extend(
+                    semantic_search(
+                        client,
+                        query=query,
+                        collection_name=collection_name,
+                        embedding_model=embedding_model,
+                        limit=per_accession_limit,
+                        ticker=ticker,
+                        section_id=section_id,
+                        accession_numbers=[accession_number],
+                    )
+                )
+
+        results.extend(_dedupe_results(accession_results)[:per_accession_limit])
+
+    return _dedupe_results(results)
+
+
+def retrieve_comparison_chunks(
+    client: QdrantClient,
+    *,
+    query: str,
+    collection_name: str,
+    embedding_model: str,
+    limit: int,
+    tickers: list[str],
+    section_ids: list[str],
+    accession_numbers: list[str] | None,
+    accession_numbers_by_ticker: dict[str, list[str]] | None,
+) -> list[SearchResult]:
+    per_ticker_limit = max(1, ceil(limit / len(tickers)))
+    results = []
+
+    for ticker in tickers:
+        ticker_results = []
+        ticker_accessions = (
+            accession_numbers_by_ticker.get(ticker)
+            if accession_numbers_by_ticker is not None
+            else accession_numbers
+        )
+
+        for section_id in section_ids or [None]:
+            ticker_results.extend(
+                semantic_search(
+                    client,
+                    query=query,
+                    collection_name=collection_name,
+                    embedding_model=embedding_model,
+                    limit=per_ticker_limit,
+                    ticker=ticker,
+                    section_id=section_id,
+                    accession_numbers=ticker_accessions,
+                )
+            )
+
+        results.extend(_dedupe_results(ticker_results)[:per_ticker_limit])
+
+    return _dedupe_results(results)
+
+
+def _dedupe_results(results: list[SearchResult]) -> list[SearchResult]:
+    deduped = []
+    seen = set()
+    for result in sorted(results, key=lambda result: result.score, reverse=True):
+        payload = result.payload
+        key = payload.get("chunk_id") or (
+            payload.get("accession_number"),
+            payload.get("section_id"),
+            payload.get("chunk_index"),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(result)
+    return deduped
 
 
 def make_vector_id(accession_number: str, section_id: str, chunk_index: int) -> str:

@@ -5,8 +5,8 @@ from pathlib import Path
 
 from sec_edgar_downloader import Downloader
 
-from parser import clean_sec_html
-from sections import chunk_sections, split_10k_sections
+from parser import clean_sec_html, extract_primary_document
+from sections import chunk_sections, extract_10k_sections
 from storage import FilingMetadata, initialize_database, replace_filing_chunks, upsert_filing
 
 
@@ -88,7 +88,8 @@ def ingest_downloaded_filing(
     accession_number = metadata_values.get("accession_number") or filing_path.parent.name
     form_type = metadata_values.get("form_type") or "10-K"
 
-    clean_text = clean_sec_html(raw_submission)
+    primary_document = extract_primary_document(raw_submission, form_type=form_type)
+    clean_text = clean_sec_html(primary_document.text)
     clean_text_path = write_clean_text(
         processed_dir=processed_dir,
         ticker=ticker,
@@ -97,7 +98,7 @@ def ingest_downloaded_filing(
         text=clean_text,
     )
 
-    sections = split_10k_sections(clean_text)
+    sections = extract_10k_sections(primary_document.text)
     chunks = chunk_sections(sections, chunk_size=chunk_size, overlap=overlap)
 
     metadata = FilingMetadata(

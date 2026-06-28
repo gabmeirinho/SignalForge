@@ -1,7 +1,9 @@
 import hashlib
 from pathlib import Path
 
+import ingestion as ingestion_module
 from ingestion import ingest_downloaded_filing, parse_submission_metadata
+from sections import FilingSection
 from storage import connect_database, initialize_database
 
 
@@ -30,7 +32,10 @@ FILER:
     assert metadata["cik"] == "0000000000"
 
 
-def test_ingest_downloaded_filing_writes_clean_text_and_sqlite_rows(tmp_path: Path):
+def test_ingest_downloaded_filing_writes_clean_text_and_sqlite_rows(
+    tmp_path: Path,
+    monkeypatch,
+):
     filing_path = (
         tmp_path
         / "raw"
@@ -45,6 +50,24 @@ def test_ingest_downloaded_filing_writes_clean_text_and_sqlite_rows(tmp_path: Pa
 
     db_path = tmp_path / "signalforge.sqlite3"
     processed_dir = tmp_path / "processed"
+    monkeypatch.setattr(
+        ingestion_module,
+        "extract_10k_sections",
+        lambda html: [
+            FilingSection("1", "Business", _repeat("Visible business text.", 80)),
+            FilingSection("1A", "Risk Factors", _repeat("Visible risk text.", 80)),
+            FilingSection(
+                "7",
+                "Management's Discussion and Analysis",
+                _repeat("Visible discussion text.", 80),
+            ),
+            FilingSection(
+                "7A",
+                "Quantitative and Qualitative Disclosures About Market Risk",
+                _repeat("Visible market risk text.", 80),
+            ),
+        ],
+    )
 
     with connect_database(db_path) as connection:
         initialize_database(connection)

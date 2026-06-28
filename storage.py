@@ -331,6 +331,7 @@ def get_ready_accession_numbers(
     embedding_model: str,
     vector_collection: str,
     ticker: str | None = None,
+    filing_years: list[int] | None = None,
 ) -> list[str]:
     query = """
         SELECT f.accession_number
@@ -346,11 +347,33 @@ def get_ready_accession_numbers(
         query += " AND f.ticker = ?"
         parameters.append(ticker.upper())
 
+    if filing_years is not None:
+        if not filing_years:
+            return []
+        placeholders = ", ".join("?" for _ in filing_years)
+        query += f" AND CAST(substr(f.filing_date, 1, 4) AS INTEGER) IN ({placeholders})"
+        parameters.extend(filing_years)
+
     query += " ORDER BY f.accession_number"
     return [
         str(row["accession_number"])
         for row in connection.execute(query, parameters).fetchall()
     ]
+
+
+def load_planner_metadata(connection: sqlite3.Connection) -> list[sqlite3.Row]:
+    return connection.execute(
+        """
+        SELECT DISTINCT
+            f.ticker,
+            f.company_name,
+            f.filing_date,
+            c.section_id
+        FROM filings AS f
+        JOIN chunks AS c ON c.filing_id = f.id
+        ORDER BY f.ticker, f.filing_date, c.section_id
+        """
+    ).fetchall()
 
 
 def update_embedding_run_progress(
