@@ -1,6 +1,6 @@
 import pytest
 
-from parser import clean_sec_html, extract_primary_document, extract_primary_document_text
+from signalforge.parser import clean_sec_html, extract_primary_document, extract_primary_document_text
 
 
 def test_extracts_only_primary_10k_from_full_submission():

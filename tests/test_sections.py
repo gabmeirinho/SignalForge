@@ -1,7 +1,7 @@
 import pytest
 
-import sections as sections_module
-from sections import (
+import signalforge.sections as sections_module
+from signalforge.sections import (
     FilingSection,
     chunk_sections,
     chunk_text_by_paragraph,

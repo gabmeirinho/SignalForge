@@ -66,6 +66,43 @@ class PlannerContext:
         }
 
 
+def build_planner_context(rows) -> PlannerContext:
+    tickers = set()
+    sections = set()
+    years_by_ticker: dict[str, set[int]] = {}
+    company_names_by_ticker: dict[str, set[str]] = {}
+
+    for row in rows:
+        ticker = str(row["ticker"]).upper()
+        tickers.add(ticker)
+        if "company_name" in row.keys() and row["company_name"]:
+            company_names_by_ticker.setdefault(ticker, set()).add(str(row["company_name"]))
+
+        section_id = str(row["section_id"]).upper()
+        if section_id in SUPPORTED_SECTIONS:
+            sections.add(section_id)
+
+        filing_date = row["filing_date"]
+        if filing_date and len(str(filing_date)) >= 4:
+            try:
+                years_by_ticker.setdefault(ticker, set()).add(int(str(filing_date)[:4]))
+            except ValueError:
+                pass
+
+    return PlannerContext(
+        available_tickers=tuple(sorted(tickers)),
+        available_sections=tuple(section for section in SUPPORTED_SECTIONS if section in sections),
+        filing_years_by_ticker={
+            ticker: tuple(sorted(years, reverse=True))
+            for ticker, years in sorted(years_by_ticker.items())
+        },
+        company_names_by_ticker={
+            ticker: tuple(sorted(names))
+            for ticker, names in sorted(company_names_by_ticker.items())
+        },
+    )
+
+
 @dataclass(frozen=True)
 class PlanningResult:
     plan: SearchPlan

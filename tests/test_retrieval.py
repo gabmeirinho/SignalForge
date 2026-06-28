@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
-from sections import TextChunk
-from storage import (
+from signalforge.sections import TextChunk
+from signalforge.storage import (
     FilingMetadata,
     connect_database,
     get_ready_accession_numbers,
@@ -10,7 +10,7 @@ from storage import (
     set_embedding_run_status,
     upsert_filing,
 )
-from vector_store import retrieve_chunks, semantic_search
+from signalforge.vector_store import retrieve_chunks, semantic_search
 
 
 MODEL = "test-model"

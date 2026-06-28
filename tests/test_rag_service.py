@@ -1,7 +1,7 @@
 import pytest
 
-from rag_service import answer_question, source_chunks_from_results
-from vector_store import SearchResult
+from signalforge.rag_service import answer_question, source_chunks_from_results
+from signalforge.vector_store import SearchResult
 
 
 def test_answer_question_reports_missing_database(tmp_path):

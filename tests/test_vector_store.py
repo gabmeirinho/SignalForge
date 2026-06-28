@@ -2,7 +2,7 @@ import uuid
 
 from qdrant_client import QdrantClient, models
 
-from vector_store import (
+from signalforge.vector_store import (
     delete_obsolete_points,
     fetch_vector_ids_for_accession,
     make_vector_id,

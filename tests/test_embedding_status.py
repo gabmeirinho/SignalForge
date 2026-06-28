@@ -1,5 +1,5 @@
-from sections import TextChunk
-from storage import (
+from signalforge.sections import TextChunk
+from signalforge.storage import (
     FilingMetadata,
     connect_database,
     get_ready_accession_numbers,

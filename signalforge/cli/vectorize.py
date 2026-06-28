@@ -1,7 +1,7 @@
 import argparse
 from collections import defaultdict
 
-from storage import (
+from signalforge.storage import (
     connect_database,
     initialize_database,
     load_chunks_for_vector_index,
@@ -9,7 +9,7 @@ from storage import (
     set_embedding_run_status,
     update_embedding_run_progress,
 )
-from vector_store import (
+from signalforge.vector_store import (
     DEFAULT_COLLECTION,
     DEFAULT_EMBEDDING_MODEL,
     create_qdrant_client,

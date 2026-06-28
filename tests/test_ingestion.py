@@ -1,10 +1,10 @@
 import hashlib
 from pathlib import Path
 
-import ingestion as ingestion_module
-from ingestion import ingest_downloaded_filing, parse_submission_metadata
-from sections import FilingSection
-from storage import connect_database, initialize_database
+import signalforge.ingestion as ingestion_module
+from signalforge.ingestion import ingest_downloaded_filing, parse_submission_metadata
+from signalforge.sections import FilingSection
+from signalforge.storage import connect_database, initialize_database
 
 
 def test_parse_submission_metadata_from_sec_header():

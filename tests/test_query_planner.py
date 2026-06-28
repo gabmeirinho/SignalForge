@@ -1,8 +1,12 @@
 import json
 from types import SimpleNamespace
 
-from plan_query import build_planner_context
-from query_planner import DeepSeekQueryPlanner, LocalQueryPlanner, PlannerContext
+from signalforge.query_planner import (
+    DeepSeekQueryPlanner,
+    LocalQueryPlanner,
+    PlannerContext,
+    build_planner_context,
+)
 
 
 def test_deepseek_planner_returns_normalized_plan():
