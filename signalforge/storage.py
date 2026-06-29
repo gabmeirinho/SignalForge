@@ -304,6 +304,33 @@ def upsert_company(connection: sqlite3.Connection, company: CompanyRecord) -> in
     return int(row["id"])
 
 
+def load_company_by_ticker(connection: sqlite3.Connection, ticker: str) -> sqlite3.Row | None:
+    return connection.execute(
+        """
+        SELECT *
+        FROM companies
+        WHERE ticker = ?
+        """,
+        (ticker.upper(),),
+    ).fetchone()
+
+
+def load_latest_filing_company_metadata(
+    connection: sqlite3.Connection,
+    ticker: str,
+) -> sqlite3.Row | None:
+    return connection.execute(
+        """
+        SELECT ticker, company_name, cik
+        FROM filings
+        WHERE ticker = ?
+        ORDER BY filing_date DESC, id DESC
+        LIMIT 1
+        """,
+        (ticker.upper(),),
+    ).fetchone()
+
+
 def upsert_source(connection: sqlite3.Connection, source: SourceRecord) -> int:
     _validate_source(source)
     connection.execute(
