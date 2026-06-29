@@ -1,9 +1,32 @@
+import json
 import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
 from signalforge.sections import TextChunk
+
+SOURCE_TYPES = {
+    "company_blog",
+    "newsroom",
+    "investor_relations",
+    "industry_blog",
+    "news_feed",
+    "sec",
+    "webpage",
+}
+SOURCE_OWNERSHIPS = {"official", "third_party", "unknown"}
+SOURCE_TRUST_LEVELS = {"high", "medium", "low"}
+SOURCE_DISCOVERY_STATUSES = {"candidate", "approved", "rejected", "manual"}
+DOCUMENT_TYPES = {
+    "article",
+    "blog_post",
+    "press_release",
+    "investor_update",
+    "filing",
+    "webpage",
+}
+SOURCE_INGESTION_STATUSES = {"running", "completed", "failed", "partial"}
 
 
 @dataclass(frozen=True)
@@ -18,6 +41,48 @@ class FilingMetadata:
     raw_path: str
     raw_sha256: str
     clean_text_path: str
+
+
+@dataclass(frozen=True)
+class CompanyRecord:
+    ticker: str
+    name: str | None = None
+    cik: str | None = None
+    website_domain: str | None = None
+
+
+@dataclass(frozen=True)
+class SourceRecord:
+    name: str
+    url: str
+    source_type: str
+    ownership: str = "unknown"
+    trust_level: str = "medium"
+    discovery_status: str = "candidate"
+    enabled: bool = True
+    company_id: int | None = None
+    confidence_score: float | None = None
+    discovery_reason: str | None = None
+
+
+@dataclass(frozen=True)
+class DocumentRecord:
+    source_id: int
+    url: str
+    title: str | None
+    content_hash: str
+    document_type: str
+    author: str | None = None
+    published_at: str | None = None
+    fetched_at: str | None = None
+    clean_text_path: str | None = None
+    metadata: dict | None = None
+
+
+@dataclass(frozen=True)
+class GenericDocumentChunk:
+    chunk_index: int
+    text: str
 
 
 def connect_database(path: str | Path) -> sqlite3.Connection:
@@ -89,6 +154,119 @@ def initialize_database(connection: sqlite3.Connection) -> None:
             PRIMARY KEY (filing_id, embedding_model, vector_collection),
             FOREIGN KEY (filing_id) REFERENCES filings(id) ON DELETE CASCADE
         );
+
+        CREATE TABLE IF NOT EXISTS companies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticker TEXT NOT NULL UNIQUE,
+            name TEXT,
+            cik TEXT,
+            website_domain TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company_id INTEGER,
+            name TEXT NOT NULL,
+            url TEXT NOT NULL UNIQUE,
+            source_type TEXT NOT NULL CHECK (
+                source_type IN (
+                    'company_blog',
+                    'newsroom',
+                    'investor_relations',
+                    'industry_blog',
+                    'news_feed',
+                    'sec',
+                    'webpage'
+                )
+            ),
+            ownership TEXT NOT NULL CHECK (
+                ownership IN ('official', 'third_party', 'unknown')
+            ),
+            trust_level TEXT NOT NULL CHECK (
+                trust_level IN ('high', 'medium', 'low')
+            ),
+            discovery_status TEXT NOT NULL CHECK (
+                discovery_status IN ('candidate', 'approved', 'rejected', 'manual')
+            ),
+            enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+            confidence_score REAL CHECK (
+                confidence_score IS NULL
+                OR (confidence_score >= 0.0 AND confidence_score <= 1.0)
+            ),
+            discovery_reason TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_sources_company_id
+            ON sources(company_id);
+        CREATE INDEX IF NOT EXISTS idx_sources_discovery_status
+            ON sources(discovery_status);
+
+        CREATE TABLE IF NOT EXISTS documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_id INTEGER NOT NULL,
+            url TEXT NOT NULL,
+            title TEXT,
+            author TEXT,
+            published_at TEXT,
+            fetched_at TEXT NOT NULL,
+            clean_text_path TEXT,
+            content_hash TEXT NOT NULL,
+            document_type TEXT NOT NULL CHECK (
+                document_type IN (
+                    'article',
+                    'blog_post',
+                    'press_release',
+                    'investor_update',
+                    'filing',
+                    'webpage'
+                )
+            ),
+            metadata_json TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (source_id) REFERENCES sources(id) ON DELETE CASCADE,
+            UNIQUE (source_id, url)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_documents_source_id
+            ON documents(source_id);
+        CREATE INDEX IF NOT EXISTS idx_documents_content_hash
+            ON documents(content_hash);
+
+        CREATE TABLE IF NOT EXISTS document_chunks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            document_id INTEGER NOT NULL,
+            chunk_index INTEGER NOT NULL,
+            text TEXT NOT NULL,
+            char_count INTEGER NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
+            UNIQUE (document_id, chunk_index)
+        );
+
+        CREATE TABLE IF NOT EXISTS source_ingestion_runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_id INTEGER NOT NULL,
+            status TEXT NOT NULL CHECK (
+                status IN ('running', 'completed', 'failed', 'partial')
+            ),
+            started_at TEXT NOT NULL,
+            completed_at TEXT,
+            discovered_count INTEGER NOT NULL DEFAULT 0,
+            inserted_count INTEGER NOT NULL DEFAULT 0,
+            skipped_count INTEGER NOT NULL DEFAULT 0,
+            error_message TEXT,
+            FOREIGN KEY (source_id) REFERENCES sources(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_source_ingestion_runs_source_id
+            ON source_ingestion_runs(source_id);
         """
     )
     filing_columns = {
@@ -96,6 +274,221 @@ def initialize_database(connection: sqlite3.Connection) -> None:
     }
     if "raw_sha256" not in filing_columns:
         connection.execute("ALTER TABLE filings ADD COLUMN raw_sha256 TEXT")
+    connection.commit()
+
+
+def upsert_company(connection: sqlite3.Connection, company: CompanyRecord) -> int:
+    ticker = company.ticker.upper()
+    connection.execute(
+        """
+        INSERT INTO companies (
+            ticker,
+            name,
+            cik,
+            website_domain
+        )
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(ticker) DO UPDATE SET
+            name = excluded.name,
+            cik = excluded.cik,
+            website_domain = excluded.website_domain,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (ticker, company.name, company.cik, company.website_domain),
+    )
+    connection.commit()
+
+    row = connection.execute("SELECT id FROM companies WHERE ticker = ?", (ticker,)).fetchone()
+    if row is None:
+        raise RuntimeError(f"Failed to load company after upsert: {ticker}")
+    return int(row["id"])
+
+
+def upsert_source(connection: sqlite3.Connection, source: SourceRecord) -> int:
+    _validate_source(source)
+    connection.execute(
+        """
+        INSERT INTO sources (
+            company_id,
+            name,
+            url,
+            source_type,
+            ownership,
+            trust_level,
+            discovery_status,
+            enabled,
+            confidence_score,
+            discovery_reason
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(url) DO UPDATE SET
+            company_id = excluded.company_id,
+            name = excluded.name,
+            source_type = excluded.source_type,
+            ownership = excluded.ownership,
+            trust_level = excluded.trust_level,
+            discovery_status = excluded.discovery_status,
+            enabled = excluded.enabled,
+            confidence_score = excluded.confidence_score,
+            discovery_reason = excluded.discovery_reason,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (
+            source.company_id,
+            source.name,
+            source.url,
+            source.source_type,
+            source.ownership,
+            source.trust_level,
+            source.discovery_status,
+            int(source.enabled),
+            source.confidence_score,
+            source.discovery_reason,
+        ),
+    )
+    connection.commit()
+
+    row = connection.execute("SELECT id FROM sources WHERE url = ?", (source.url,)).fetchone()
+    if row is None:
+        raise RuntimeError(f"Failed to load source after upsert: {source.url}")
+    return int(row["id"])
+
+
+def upsert_document(connection: sqlite3.Connection, document: DocumentRecord) -> int:
+    _validate_document(document)
+    fetched_at = document.fetched_at or _utc_now()
+    metadata_json = json.dumps(document.metadata or {}, sort_keys=True)
+    connection.execute(
+        """
+        INSERT INTO documents (
+            source_id,
+            url,
+            title,
+            author,
+            published_at,
+            fetched_at,
+            clean_text_path,
+            content_hash,
+            document_type,
+            metadata_json
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(source_id, url) DO UPDATE SET
+            title = excluded.title,
+            author = excluded.author,
+            published_at = excluded.published_at,
+            fetched_at = excluded.fetched_at,
+            clean_text_path = excluded.clean_text_path,
+            content_hash = excluded.content_hash,
+            document_type = excluded.document_type,
+            metadata_json = excluded.metadata_json,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (
+            document.source_id,
+            document.url,
+            document.title,
+            document.author,
+            document.published_at,
+            fetched_at,
+            document.clean_text_path,
+            document.content_hash,
+            document.document_type,
+            metadata_json,
+        ),
+    )
+    connection.commit()
+
+    row = connection.execute(
+        "SELECT id FROM documents WHERE source_id = ? AND url = ?",
+        (document.source_id, document.url),
+    ).fetchone()
+    if row is None:
+        raise RuntimeError(f"Failed to load document after upsert: {document.url}")
+    return int(row["id"])
+
+
+def replace_document_chunks(
+    connection: sqlite3.Connection,
+    document_id: int,
+    chunks: list[GenericDocumentChunk],
+) -> None:
+    connection.execute("DELETE FROM document_chunks WHERE document_id = ?", (document_id,))
+    connection.executemany(
+        """
+        INSERT INTO document_chunks (
+            document_id,
+            chunk_index,
+            text,
+            char_count
+        )
+        VALUES (?, ?, ?, ?)
+        """,
+        [
+            (
+                document_id,
+                chunk.chunk_index,
+                chunk.text,
+                len(chunk.text),
+            )
+            for chunk in chunks
+        ],
+    )
+    connection.commit()
+
+
+def create_source_ingestion_run(connection: sqlite3.Connection, source_id: int) -> int:
+    started_at = _utc_now()
+    cursor = connection.execute(
+        """
+        INSERT INTO source_ingestion_runs (
+            source_id,
+            status,
+            started_at
+        )
+        VALUES (?, 'running', ?)
+        """,
+        (source_id, started_at),
+    )
+    connection.commit()
+    return int(cursor.lastrowid)
+
+
+def complete_source_ingestion_run(
+    connection: sqlite3.Connection,
+    *,
+    run_id: int,
+    status: str,
+    discovered_count: int = 0,
+    inserted_count: int = 0,
+    skipped_count: int = 0,
+    error_message: str | None = None,
+) -> None:
+    if status not in SOURCE_INGESTION_STATUSES - {"running"}:
+        raise ValueError(f"Unsupported completed ingestion status: {status}")
+
+    connection.execute(
+        """
+        UPDATE source_ingestion_runs
+        SET
+            status = ?,
+            completed_at = ?,
+            discovered_count = ?,
+            inserted_count = ?,
+            skipped_count = ?,
+            error_message = ?
+        WHERE id = ?
+        """,
+        (
+            status,
+            _utc_now(),
+            discovered_count,
+            inserted_count,
+            skipped_count,
+            error_message,
+            run_id,
+        ),
+    )
     connection.commit()
 
 
@@ -446,6 +839,29 @@ def update_embedding_run_progress(
         ),
     )
     connection.commit()
+
+
+def _validate_source(source: SourceRecord) -> None:
+    _validate_choice("source_type", source.source_type, SOURCE_TYPES)
+    _validate_choice("ownership", source.ownership, SOURCE_OWNERSHIPS)
+    _validate_choice("trust_level", source.trust_level, SOURCE_TRUST_LEVELS)
+    _validate_choice(
+        "discovery_status",
+        source.discovery_status,
+        SOURCE_DISCOVERY_STATUSES,
+    )
+    if source.confidence_score is not None and not 0.0 <= source.confidence_score <= 1.0:
+        raise ValueError("confidence_score must be between 0.0 and 1.0")
+
+
+def _validate_document(document: DocumentRecord) -> None:
+    _validate_choice("document_type", document.document_type, DOCUMENT_TYPES)
+
+
+def _validate_choice(field_name: str, value: str, supported_values: set[str]) -> None:
+    if value not in supported_values:
+        allowed = ", ".join(sorted(supported_values))
+        raise ValueError(f"Unsupported {field_name}: {value}. Expected one of: {allowed}")
 
 
 def _utc_now() -> str:
