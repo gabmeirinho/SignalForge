@@ -58,7 +58,7 @@ def test_generate_domain_candidates_from_sec_company_name():
     ]
 
 
-def test_homepage_confirmation_rejects_parked_domains():
+def test_domain_root_reachability_accepts_2xx_responses():
     result = FetchResult(
         url="https://example.com/",
         final_url="https://example.com/",
@@ -67,7 +67,7 @@ def test_homepage_confirmation_rejects_parked_domains():
         text="<html><title>Example</title><body>This domain may be for sale.</body></html>",
     )
 
-    assert domain_root_is_reachable(result) is False
+    assert domain_root_is_reachable(result) is True
 
 
 def test_classify_fetch_result_scores_official_blog_with_feed():

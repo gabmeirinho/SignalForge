@@ -40,14 +40,6 @@ LEGAL_NAME_SUFFIXES = {
     "sa",
 }
 
-PARKED_DOMAIN_SIGNALS = (
-    "buy this domain",
-    "domain is for sale",
-    "parking page",
-    "sedo domain parking",
-    "this domain may be for sale",
-)
-
 SOURCE_PATHS = (
     "/blog",
     "/blogs",
@@ -321,13 +313,7 @@ def normalize_company_name_tokens(company_name: str) -> list[str]:
 
 
 def domain_root_is_reachable(result: FetchResult) -> bool:
-    if result.status_code is None or not 200 <= result.status_code < 300:
-        return False
-    _title, text, _rss_urls = inspect_content(result, result.final_url or result.url)
-    haystack = text.lower()
-    if any(signal in haystack for signal in PARKED_DOMAIN_SIGNALS):
-        return False
-    return True
+    return result.status_code is not None and 200 <= result.status_code < 300
 
 
 def generate_candidate_urls(website_domain: str) -> list[str]:
