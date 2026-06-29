@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from html import unescape
+import re
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -19,6 +20,32 @@ from signalforge.storage import (
 DEFAULT_TIMEOUT_SECONDS = 8.0
 DEFAULT_USER_AGENT = "SignalForge source discovery/0.1"
 MIN_CANDIDATE_SCORE = 0.45
+
+LEGAL_NAME_SUFFIXES = {
+    "class",
+    "co",
+    "company",
+    "corp",
+    "corporation",
+    "group",
+    "holding",
+    "holdings",
+    "inc",
+    "incorporated",
+    "limited",
+    "llc",
+    "ltd",
+    "plc",
+    "sa",
+}
+
+PARKED_DOMAIN_SIGNALS = (
+    "buy this domain",
+    "domain is for sale",
+    "parking page",
+    "sedo domain parking",
+    "this domain may be for sale",
+)
 
 SOURCE_PATHS = (
     "/blog",
@@ -149,12 +176,13 @@ def discover_sources_for_ticker(
     fetcher: HttpxFetcher | None = None,
     persist: bool = True,
 ) -> list[DiscoveredSource]:
+    fetcher = fetcher or HttpxFetcher()
     resolution = resolve_company(
         connection,
         ticker=ticker,
         website_domain=website_domain,
+        fetcher=fetcher,
     )
-    fetcher = fetcher or HttpxFetcher()
     candidates: list[DiscoveredSource] = []
 
     for url in generate_candidate_urls(resolution.website_domain):
@@ -207,6 +235,7 @@ def resolve_company(
     *,
     ticker: str,
     website_domain: str | None = None,
+    fetcher: HttpxFetcher | None = None,
 ) -> CompanyResolution:
     ticker = ticker.upper()
     company = load_company_by_ticker(connection, ticker)
@@ -224,10 +253,19 @@ def resolve_company(
         _first_non_empty(website_domain, company["website_domain"] if company else None)
     )
     if not domain:
-        raise ValueError(
-            f"No website domain is known for {ticker}. "
-            "Pass --website-domain or add the company domain first."
+        if name is None:
+            raise ValueError(
+                f"No company name is known for {ticker}. "
+                "Ingest an SEC filing first or pass --website-domain."
+            )
+        domain = resolve_domain_from_company_name(
+            company_name=name,
+            fetcher=fetcher or HttpxFetcher(),
         )
+        if not domain:
+            raise ValueError(
+                f"Could not resolve an official website domain for {ticker} from SEC name: {name}"
+            )
 
     company_id = upsert_company(
         connection,
@@ -245,6 +283,68 @@ def resolve_company(
         cik=cik,
         website_domain=domain,
     )
+
+
+def resolve_domain_from_company_name(
+    *,
+    company_name: str,
+    fetcher: HttpxFetcher,
+) -> str | None:
+    for domain in generate_domain_candidates_from_company_name(company_name):
+        result = fetcher.fetch(f"https://{domain}/")
+        if homepage_confirms_company_domain(result, company_name=company_name, candidate_domain=domain):
+            return normalize_domain(result.final_url or domain)
+    return None
+
+
+def generate_domain_candidates_from_company_name(company_name: str) -> list[str]:
+    tokens = normalize_company_name_tokens(company_name)
+    if not tokens:
+        return []
+
+    candidates = [
+        f"{''.join(tokens)}.com",
+        f"{tokens[0]}.com",
+    ]
+    if len(tokens) > 1:
+        candidates.append(f"{'-'.join(tokens)}.com")
+
+    return list(dict.fromkeys(candidates))
+
+
+def normalize_company_name_tokens(company_name: str) -> list[str]:
+    normalized = re.sub(r"[^a-zA-Z0-9& ]+", " ", company_name).lower()
+    normalized = normalized.replace("&", " and ")
+    tokens = [token for token in normalized.split() if token not in LEGAL_NAME_SUFFIXES]
+    while tokens and tokens[-1] in {"a", "b", "c"}:
+        tokens.pop()
+    return tokens
+
+
+def homepage_confirms_company_domain(
+    result: FetchResult,
+    *,
+    company_name: str,
+    candidate_domain: str,
+) -> bool:
+    if result.status_code is None or not 200 <= result.status_code < 300:
+        return False
+    final_url = result.final_url or result.url
+    final_domain = normalize_domain(final_url)
+    expected_domain = normalize_domain(candidate_domain)
+    if final_domain != expected_domain and not final_domain.endswith(f".{expected_domain}"):
+        return False
+
+    title, text, _rss_urls = inspect_content(result, final_url)
+    haystack = f"{title or ''} {text}".lower()
+    if any(signal in haystack for signal in PARKED_DOMAIN_SIGNALS):
+        return False
+
+    tokens = normalize_company_name_tokens(company_name)
+    if not tokens:
+        return False
+    full_name_signal = " ".join(tokens)
+    return full_name_signal in haystack or tokens[0] in haystack
 
 
 def generate_candidate_urls(website_domain: str) -> list[str]:
