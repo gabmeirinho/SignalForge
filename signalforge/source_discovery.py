@@ -253,13 +253,20 @@ def resolve_company(
                 f"No company name is known for {ticker}. "
                 "Ingest an SEC filing first or pass --website-domain."
             )
+        domain_candidates = generate_domain_candidates_from_company_name(name)
         domain = resolve_domain_from_company_name(
             company_name=name,
             fetcher=fetcher or HttpxFetcher(),
         )
         if not domain:
+            tried = ", ".join(domain_candidates) if domain_candidates else "none"
             raise ValueError(
-                f"Could not resolve an official website domain for {ticker} from SEC name: {name}"
+                f"Default domain resolution failed for {ticker} from SEC name {name!r}. "
+                f"Tried default domain candidates: {tried}. "
+                "Some companies use a domain that cannot be inferred from their legal name. "
+                f"Add the official domain manually with --website-domain, for example: "
+                f"uv run python -m signalforge.cli.discover_sources --ticker {ticker} "
+                "--website-domain example.com. Replace example.com with the company's official domain."
             )
 
     company_id = None

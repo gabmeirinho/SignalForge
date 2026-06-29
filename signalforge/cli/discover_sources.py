@@ -1,4 +1,5 @@
 import argparse
+import sys
 
 from signalforge.source_discovery import discover_sources_for_ticker
 from signalforge.storage import connect_database, initialize_database
@@ -8,12 +9,16 @@ def main() -> None:
     args = parse_args()
     with connect_database(args.db_path) as connection:
         initialize_database(connection)
-        sources = discover_sources_for_ticker(
-            connection=connection,
-            ticker=args.ticker,
-            website_domain=args.website_domain,
-            persist=not args.dry_run,
-        )
+        try:
+            sources = discover_sources_for_ticker(
+                connection=connection,
+                ticker=args.ticker,
+                website_domain=args.website_domain,
+                persist=not args.dry_run,
+            )
+        except ValueError as error:
+            print(f"Source discovery failed: {error}", file=sys.stderr)
+            raise SystemExit(2) from None
 
     ticker = args.ticker.upper()
     if not sources:

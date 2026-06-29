@@ -1,3 +1,5 @@
+import pytest
+
 from signalforge.source_discovery import (
     FetchResult,
     classify_fetch_result,
@@ -320,6 +322,38 @@ def test_discover_sources_resolves_domain_from_sec_company_name(tmp_path):
     assert company["name"] == "NVIDIA CORP"
     assert company["website_domain"] == "nvidia.com"
     assert {source.source_type for source in sources} == {"company_blog"}
+
+
+def test_discover_sources_explains_manual_domain_override_when_resolution_fails(tmp_path):
+    with connect_database(tmp_path / "signalforge.sqlite3") as connection:
+        initialize_database(connection)
+        upsert_filing(
+            connection,
+            FilingMetadata(
+                accession_number="0001652044-26-000018",
+                ticker="GOOGL",
+                cik="0001652044",
+                company_name="Alphabet Inc.",
+                form_type="10-K",
+                filing_date="2026-02-05",
+                period_of_report="2025-12-31",
+                raw_path="raw.txt",
+                raw_sha256="a" * 64,
+                clean_text_path="clean.txt",
+            ),
+        )
+
+        with pytest.raises(ValueError) as error:
+            discover_sources_for_ticker(
+                connection=connection,
+                ticker="GOOGL",
+                fetcher=FakeFetcher({}),
+            )
+
+    message = str(error.value)
+    assert "Tried default domain candidates: alphabet.com" in message
+    assert "--website-domain example.com" in message
+    assert "--ticker GOOGL" in message
 
 
 def test_discover_sources_resolves_domain_from_sec_name_using_source_path(tmp_path):
