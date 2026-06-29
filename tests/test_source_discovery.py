@@ -70,6 +70,18 @@ def test_domain_root_reachability_accepts_2xx_responses():
     assert domain_root_is_reachable(result) is True
 
 
+def test_domain_root_reachability_accepts_protected_roots():
+    result = FetchResult(
+        url="https://example.com/",
+        final_url="https://www.example.com/",
+        status_code=403,
+        content_type="text/html",
+        text="<html><title>Access Denied</title></html>",
+    )
+
+    assert domain_root_is_reachable(result) is True
+
+
 def test_classify_fetch_result_scores_official_blog_with_feed():
     result = FetchResult(
         url="https://blogs.nvidia.com/",
@@ -108,6 +120,18 @@ def test_classify_fetch_result_skips_404s():
     )
 
     assert classify_fetch_result(result, official_domain="nvidia.com") is None
+
+
+def test_classify_fetch_result_rejects_protected_source_pages():
+    result = FetchResult(
+        url="https://example.com/blog",
+        final_url="https://www.example.com/blog",
+        status_code=403,
+        content_type="text/html",
+        text="<html><title>Access Denied</title></html>",
+    )
+
+    assert classify_fetch_result(result, official_domain="example.com") is None
 
 
 def test_discover_sources_persists_candidates_for_known_company_domain(tmp_path):
@@ -201,6 +225,42 @@ def test_discover_sources_accepts_and_stores_website_domain(tmp_path):
     assert normalize_domain(company["website_domain"]) == "example.com"
     assert len(sources) == 1
     assert sources[0].source_type == "newsroom"
+
+
+def test_discover_sources_dry_run_does_not_store_website_domain(tmp_path):
+    with connect_database(tmp_path / "signalforge.sqlite3") as connection:
+        initialize_database(connection)
+        fetcher = FakeFetcher(
+            {
+                "https://example.com/newsroom": FetchResult(
+                    url="https://example.com/newsroom",
+                    final_url="https://example.com/newsroom",
+                    status_code=200,
+                    content_type="text/html",
+                    text="""
+                    <html>
+                      <head><title>Example Newsroom</title></head>
+                      <body>{body}</body>
+                    </html>
+                    """.format(body="Press release and company news. " * 20),
+                )
+            }
+        )
+
+        sources = discover_sources_for_ticker(
+            connection=connection,
+            ticker="EXM",
+            website_domain="https://www.example.com/",
+            fetcher=fetcher,
+            persist=False,
+        )
+        company = connection.execute("SELECT * FROM companies WHERE ticker = 'EXM'").fetchone()
+        stored_sources = connection.execute("SELECT * FROM sources").fetchall()
+
+    assert len(sources) == 1
+    assert sources[0].persisted_id is None
+    assert company is None
+    assert stored_sources == []
 
 
 def test_discover_sources_resolves_domain_from_sec_company_name(tmp_path):

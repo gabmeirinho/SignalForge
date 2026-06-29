@@ -92,7 +92,7 @@ RSS_CONTENT_TYPES = (
 
 @dataclass(frozen=True)
 class CompanyResolution:
-    company_id: int
+    company_id: int | None
     ticker: str
     name: str | None
     cik: str | None
@@ -175,6 +175,7 @@ def discover_sources_for_ticker(
         ticker=ticker,
         website_domain=website_domain,
         fetcher=fetcher,
+        persist=persist,
     )
     candidates: list[DiscoveredSource] = []
 
@@ -229,6 +230,7 @@ def resolve_company(
     ticker: str,
     website_domain: str | None = None,
     fetcher: HttpxFetcher | None = None,
+    persist: bool = True,
 ) -> CompanyResolution:
     ticker = ticker.upper()
     company = load_company_by_ticker(connection, ticker)
@@ -260,15 +262,17 @@ def resolve_company(
                 f"Could not resolve an official website domain for {ticker} from SEC name: {name}"
             )
 
-    company_id = upsert_company(
-        connection,
-        CompanyRecord(
-            ticker=ticker,
-            name=name,
-            cik=cik,
-            website_domain=domain,
-        ),
-    )
+    company_id = None
+    if persist:
+        company_id = upsert_company(
+            connection,
+            CompanyRecord(
+                ticker=ticker,
+                name=name,
+                cik=cik,
+                website_domain=domain,
+            ),
+        )
     return CompanyResolution(
         company_id=company_id,
         ticker=ticker,
@@ -313,7 +317,9 @@ def normalize_company_name_tokens(company_name: str) -> list[str]:
 
 
 def domain_root_is_reachable(result: FetchResult) -> bool:
-    return result.status_code is not None and 200 <= result.status_code < 300
+    return result.status_code is not None and (
+        200 <= result.status_code < 400 or result.status_code in {401, 403}
+    )
 
 
 def generate_candidate_urls(website_domain: str) -> list[str]:
