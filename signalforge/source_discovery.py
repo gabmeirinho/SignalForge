@@ -23,6 +23,7 @@ MIN_CANDIDATE_SCORE = 0.45
 
 LEGAL_NAME_SUFFIXES = {
     "class",
+    "com",
     "co",
     "company",
     "corp",
@@ -292,8 +293,8 @@ def resolve_domain_from_company_name(
 ) -> str | None:
     for domain in generate_domain_candidates_from_company_name(company_name):
         result = fetcher.fetch(f"https://{domain}/")
-        if homepage_confirms_company_domain(result, company_name=company_name, candidate_domain=domain):
-            return normalize_domain(result.final_url or domain)
+        if domain_root_is_reachable(result):
+            return domain
     return None
 
 
@@ -302,11 +303,9 @@ def generate_domain_candidates_from_company_name(company_name: str) -> list[str]
     if not tokens:
         return []
 
-    candidates = [
-        f"{''.join(tokens)}.com",
-        f"{tokens[0]}.com",
-    ]
+    candidates = [f"{tokens[0]}.com"]
     if len(tokens) > 1:
+        candidates.append(f"{''.join(tokens)}.com")
         candidates.append(f"{'-'.join(tokens)}.com")
 
     return list(dict.fromkeys(candidates))
@@ -321,30 +320,14 @@ def normalize_company_name_tokens(company_name: str) -> list[str]:
     return tokens
 
 
-def homepage_confirms_company_domain(
-    result: FetchResult,
-    *,
-    company_name: str,
-    candidate_domain: str,
-) -> bool:
+def domain_root_is_reachable(result: FetchResult) -> bool:
     if result.status_code is None or not 200 <= result.status_code < 300:
         return False
-    final_url = result.final_url or result.url
-    final_domain = normalize_domain(final_url)
-    expected_domain = normalize_domain(candidate_domain)
-    if final_domain != expected_domain and not final_domain.endswith(f".{expected_domain}"):
-        return False
-
-    title, text, _rss_urls = inspect_content(result, final_url)
-    haystack = f"{title or ''} {text}".lower()
+    _title, text, _rss_urls = inspect_content(result, result.final_url or result.url)
+    haystack = text.lower()
     if any(signal in haystack for signal in PARKED_DOMAIN_SIGNALS):
         return False
-
-    tokens = normalize_company_name_tokens(company_name)
-    if not tokens:
-        return False
-    full_name_signal = " ".join(tokens)
-    return full_name_signal in haystack or tokens[0] in haystack
+    return True
 
 
 def generate_candidate_urls(website_domain: str) -> list[str]:
@@ -375,12 +358,19 @@ def classify_fetch_result(
 
     final_url = result.final_url or result.url
     title, text, rss_urls = inspect_content(result, final_url)
-    source_type = infer_source_type(final_url, title)
-    official_match = is_official_domain(final_url, official_domain)
+    source_type = infer_source_type(result.url, final_url, title)
+    official_match = is_official_domain(result.url, official_domain) or is_official_domain(
+        final_url,
+        official_domain,
+    )
     reachable = result.status_code is not None and 200 <= result.status_code < 300
-    source_signal = has_source_signal(final_url, title, rss_urls)
+    source_signal = has_source_signal(result.url, title, rss_urls) or has_source_signal(
+        final_url,
+        title,
+        rss_urls,
+    )
     score, reasons = score_candidate(
-        url=final_url,
+        url=result.url if is_official_domain(result.url, official_domain) else final_url,
         official_domain=official_domain,
         title=title,
         rss_urls=rss_urls,
@@ -475,11 +465,14 @@ def score_candidate(
     return max(0.0, min(score, 1.0)), reasons
 
 
-def infer_source_type(url: str, title: str | None = None) -> str | None:
+def infer_source_type(url: str, final_url: str | None = None, title: str | None = None) -> str | None:
     parsed = urlparse(url)
+    final_parsed = urlparse(final_url or "")
     host = parsed.netloc.lower()
     path = parsed.path.lower().rstrip("/")
-    haystack = f"{host} {path} {(title or '').lower()}"
+    final_host = final_parsed.netloc.lower()
+    final_path = final_parsed.path.lower().rstrip("/")
+    haystack = f"{host} {path} {final_host} {final_path} {(title or '').lower()}"
 
     if is_feed_url(url):
         return "news_feed"
