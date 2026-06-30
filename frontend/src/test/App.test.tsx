@@ -24,6 +24,12 @@ const health: HealthResponse = {
 const indexPayload: IndexResponse = {
   collection: "sec_chunks",
   embedding_model: "jinaai/jina-embeddings-v2-small-en",
+  summary: {
+    indexed_filing_count: 2,
+    approved_source_count: 1,
+    candidate_source_count: 1,
+    document_count: 3,
+  },
   tickers: [
     {
       ticker: "NVDA",
@@ -58,6 +64,40 @@ const indexPayload: IndexResponse = {
       sections: [{ section_id: "7", chunk_count: 31 }],
     },
   ],
+  sources: [
+    {
+      id: 1,
+      ticker: "NVDA",
+      company_name: "NVIDIA CORP",
+      name: "NVIDIA Blog",
+      url: "https://blogs.nvidia.com/feed/",
+      source_type: "news_feed",
+      ownership: "official",
+      trust_level: "high",
+      discovery_status: "approved",
+      enabled: true,
+      confidence_score: 0.95,
+      document_count: 3,
+      last_ingestion_status: "completed",
+      last_ingestion_completed_at: "2026-06-30T10:00:00+00:00",
+    },
+    {
+      id: 2,
+      ticker: "NVDA",
+      company_name: "NVIDIA CORP",
+      name: "NVIDIA Newsroom",
+      url: "https://nvidianews.nvidia.com/",
+      source_type: "newsroom",
+      ownership: "official",
+      trust_level: "high",
+      discovery_status: "candidate",
+      enabled: true,
+      confidence_score: 0.9,
+      document_count: 0,
+      last_ingestion_status: null,
+      last_ingestion_completed_at: null,
+    },
+  ],
 };
 
 const queryPayload: QueryResponse = {
@@ -79,13 +119,21 @@ const queryPayload: QueryResponse = {
     {
       label: "[1] NVDA 2026 Item 1A chunk 3",
       score: 0.82,
+      chunk_source: "sec_filing",
       ticker: "NVDA",
       company_name: "NVIDIA CORP",
       filing_date: "2026-02-25",
+      published_at: null,
       section_id: "1A",
       section_title: "Risk Factors",
       chunk_index: 3,
       accession_number: "0001045810-26-000021",
+      document_id: null,
+      source_id: null,
+      source_name: null,
+      source_type: null,
+      url: null,
+      title: null,
       text: "Supply-chain risk text.",
     },
   ],
@@ -105,6 +153,11 @@ describe("App", () => {
     expect(screen.getByText("AMD")).toBeInTheDocument();
     expect(screen.getByText("local index ready")).toBeInTheDocument();
     expect(screen.getByText("2 tickers")).toBeInTheDocument();
+    expect(screen.getByText("indexed filings")).toBeInTheDocument();
+    expect(screen.getByText("approved sources")).toBeInTheDocument();
+    expect(screen.getByText("candidate sources")).toBeInTheDocument();
+    expect(screen.getByText("NVIDIA Blog")).toBeInTheDocument();
+    expect(screen.getByText("completed 2026-06-30")).toBeInTheDocument();
   });
 
   it("inserts a ticker into the query composer without submitting", async () => {

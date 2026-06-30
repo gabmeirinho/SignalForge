@@ -159,28 +159,70 @@ def format_evidence(chunks: list[SearchResult]) -> list[EvidenceBlock]:
     evidence = []
     for index, result in enumerate(chunks, start=1):
         payload = result.payload
-        filing_date = payload.get("filing_date") or ""
-        filing_year = filing_date[:4] if filing_date[:4].isdigit() else "unknown"
-        label = (
-            f"[{index}] {payload.get('ticker')} {filing_year} "
-            f"Item {payload.get('section_id')} chunk {payload.get('chunk_index')}"
-        )
         evidence.append(
             EvidenceBlock(
-                label=label,
-                metadata={
-                    "score": result.score,
-                    "ticker": payload.get("ticker"),
-                    "filing_date": payload.get("filing_date"),
-                    "section_id": payload.get("section_id"),
-                    "section_title": payload.get("section_title"),
-                    "chunk_index": payload.get("chunk_index"),
-                    "accession_number": payload.get("accession_number"),
-                },
+                label=format_source_label(index, payload),
+                metadata=evidence_metadata(result),
                 text=payload.get("text", ""),
             )
         )
     return evidence
+
+
+def format_source_label(index: int, payload: dict) -> str:
+    if payload.get("chunk_source") == "document":
+        published_at = payload.get("published_at")
+        published_date = published_at[:10] if isinstance(published_at, str) else "undated"
+        title = payload.get("title") or payload.get("url") or "Untitled"
+        source_name = payload.get("source_name") or payload.get("ticker") or "Web document"
+        return f'[{index}] {source_name}, {published_date}, "{title}"'
+
+    filing_date = payload.get("filing_date") or ""
+    filing_year = filing_date[:4] if filing_date[:4].isdigit() else "unknown"
+    form_type = payload.get("form_type") or ""
+    form_fragment = f" {form_type}" if form_type else ""
+    return (
+        f"[{index}] {payload.get('ticker')} {filing_year}{form_fragment} "
+        f"Item {payload.get('section_id')} chunk {payload.get('chunk_index')}"
+    )
+
+
+def evidence_metadata(result: SearchResult) -> dict:
+    payload = result.payload
+    metadata = {
+        "score": result.score,
+        "chunk_source": payload.get("chunk_source", "sec_filing"),
+        "ticker": payload.get("ticker"),
+        "company_name": payload.get("company_name"),
+        "chunk_index": payload.get("chunk_index"),
+    }
+    if payload.get("chunk_source") == "document":
+        metadata.update(
+            {
+                "document_id": payload.get("document_id"),
+                "document_chunk_id": payload.get("document_chunk_id"),
+                "source_id": payload.get("source_id"),
+                "source_name": payload.get("source_name"),
+                "source_type": payload.get("source_type"),
+                "ownership": payload.get("ownership"),
+                "trust_level": payload.get("trust_level"),
+                "url": payload.get("url"),
+                "title": payload.get("title"),
+                "published_at": payload.get("published_at"),
+                "document_type": payload.get("document_type"),
+            }
+        )
+    else:
+        metadata.update(
+            {
+                "filing_date": payload.get("filing_date"),
+                "form_type": payload.get("form_type"),
+                "section_id": payload.get("section_id"),
+                "section_title": payload.get("section_title"),
+                "accession_number": payload.get("accession_number"),
+            }
+        )
+    return metadata
 
 
 def no_evidence_answer(
@@ -252,7 +294,7 @@ def _single_line(value: str) -> str:
 
 def _system_prompt() -> str:
     return """
-You are a financial research assistant answering questions from local SEC filing chunks.
+You are a financial research assistant answering questions from local retrieved evidence.
 
 Rules:
 - Use only the retrieved evidence supplied by the user.

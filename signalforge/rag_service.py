@@ -1,7 +1,11 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from signalforge.answer_generator import DEFAULT_ANSWER_MODEL, create_answer_generator_from_environment
+from signalforge.answer_generator import (
+    DEFAULT_ANSWER_MODEL,
+    create_answer_generator_from_environment,
+    format_source_label,
+)
 from signalforge.query_planner import (
     DEFAULT_PLANNER_MODEL,
     PlannerContext,
@@ -28,13 +32,21 @@ from signalforge.vector_store import (
 class SourceChunk:
     label: str
     score: float
+    chunk_source: str
     ticker: str | None
     company_name: str | None
     filing_date: str | None
+    published_at: str | None
     section_id: str | None
     section_title: str | None
     chunk_index: int | None
     accession_number: str | None
+    document_id: int | None
+    source_id: int | None
+    source_name: str | None
+    source_type: str | None
+    url: str | None
+    title: str | None
     text: str
 
 
@@ -87,7 +99,7 @@ def answer_question(
     )
 
     chunks = []
-    if accessions:
+    if plan.tickers:
         client = create_qdrant_client(qdrant_path)
         try:
             chunks = retrieve_chunks(
@@ -184,23 +196,25 @@ def source_chunks_from_results(chunks: list[SearchResult]) -> list[SourceChunk]:
     sources = []
     for index, result in enumerate(chunks, start=1):
         payload = result.payload
-        filing_date = payload.get("filing_date")
-        filing_year = filing_date[:4] if isinstance(filing_date, str) and filing_date[:4].isdigit() else "unknown"
-        label = (
-            f"[{index}] {payload.get('ticker')} {filing_year} "
-            f"Item {payload.get('section_id')} chunk {payload.get('chunk_index')}"
-        )
         sources.append(
             SourceChunk(
-                label=label,
+                label=format_source_label(index, payload),
                 score=float(result.score),
+                chunk_source=payload.get("chunk_source", "sec_filing"),
                 ticker=payload.get("ticker"),
                 company_name=payload.get("company_name"),
-                filing_date=filing_date,
+                filing_date=payload.get("filing_date"),
+                published_at=payload.get("published_at"),
                 section_id=payload.get("section_id"),
                 section_title=payload.get("section_title"),
                 chunk_index=payload.get("chunk_index"),
                 accession_number=payload.get("accession_number"),
+                document_id=payload.get("document_id"),
+                source_id=payload.get("source_id"),
+                source_name=payload.get("source_name"),
+                source_type=payload.get("source_type"),
+                url=payload.get("url"),
+                title=payload.get("title"),
                 text=payload.get("text", ""),
             )
         )

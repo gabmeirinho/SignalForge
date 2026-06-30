@@ -148,6 +148,10 @@ def chunk_sections(
     return chunks
 
 
+def chunk_text(text: str, chunk_size: int = 4_000, overlap: int = 500) -> list[str]:
+    return chunk_text_by_paragraph(text, chunk_size=chunk_size, overlap=overlap)
+
+
 def chunk_text_by_paragraph(text: str, chunk_size: int = 4_000, overlap: int = 500) -> list[str]:
     if chunk_size <= 0:
         raise ValueError("chunk_size must be greater than zero")

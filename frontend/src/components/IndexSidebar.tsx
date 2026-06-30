@@ -1,5 +1,5 @@
-import { Database, PlusCircle } from "lucide-react";
-import type { IndexResponse, IndexTicker } from "../types";
+import { Database, PlusCircle, Rss } from "lucide-react";
+import type { IndexResponse, IndexSource, IndexTicker } from "../types";
 
 type IndexSidebarProps = {
   index: IndexResponse | null;
@@ -21,11 +21,44 @@ export function IndexSidebar({ index, isLoading, error, onTickerClick }: IndexSi
       {isLoading && <p className="muted">Loading indexed companies...</p>}
       {error && <p className="sidebar-error">{error}</p>}
       {index && (
-        <div className="ticker-list">
-          {index.tickers.map((ticker) => (
-            <TickerCard key={ticker.ticker} ticker={ticker} onTickerClick={onTickerClick} />
-          ))}
-        </div>
+        <>
+          <div className="index-summary" aria-label="Index summary">
+            <div>
+              <strong>{index.summary.indexed_filing_count}</strong>
+              <span>indexed filings</span>
+            </div>
+            <div>
+              <strong>{index.summary.approved_source_count}</strong>
+              <span>approved sources</span>
+            </div>
+            <div>
+              <strong>{index.summary.candidate_source_count}</strong>
+              <span>candidate sources</span>
+            </div>
+            <div>
+              <strong>{index.summary.document_count}</strong>
+              <span>documents</span>
+            </div>
+          </div>
+          <div className="ticker-list">
+            {index.tickers.map((ticker) => (
+              <TickerCard key={ticker.ticker} ticker={ticker} onTickerClick={onTickerClick} />
+            ))}
+          </div>
+          {index.sources.length > 0 && (
+            <section className="source-summary" aria-label="Source summary">
+              <div className="source-summary-heading">
+                <Rss size={16} aria-hidden="true" />
+                <h3>Sources</h3>
+              </div>
+              <div className="source-summary-list">
+                {index.sources.map((source) => (
+                  <SourceSummaryRow key={source.id} source={source} />
+                ))}
+              </div>
+            </section>
+          )}
+        </>
       )}
     </aside>
   );
@@ -94,4 +127,32 @@ function progressPercent(indexed: number, expected: number): number {
     return 0;
   }
   return Math.max(0, Math.min(100, Math.round((indexed / expected) * 100)));
+}
+
+function SourceSummaryRow({ source }: { source: IndexSource }) {
+  return (
+    <article className="source-summary-row">
+      <div>
+        <strong>{source.name}</strong>
+        <small>
+          {source.ticker ?? "global"} · {source.discovery_status}
+          {source.enabled ? "" : " · disabled"}
+        </small>
+      </div>
+      <div className="source-summary-meta">
+        <span>{source.document_count} docs</span>
+        <span>{formatLastRun(source)}</span>
+      </div>
+    </article>
+  );
+}
+
+function formatLastRun(source: IndexSource): string {
+  if (!source.last_ingestion_status) {
+    return "not ingested";
+  }
+  const completedAt = source.last_ingestion_completed_at
+    ? source.last_ingestion_completed_at.slice(0, 10)
+    : "in progress";
+  return `${source.last_ingestion_status} ${completedAt}`;
 }

@@ -52,12 +52,16 @@ def print_chunk_summary(chunks) -> None:
 
     print("Retrieved chunks:")
     for index, chunk in enumerate(chunks, start=1):
-        print(
-            f"{index}. score={chunk.score:.4f} "
-            f"{chunk.ticker} {chunk.filing_date} "
-            f"Item {chunk.section_id} chunk {chunk.chunk_index} "
-            f"accession={chunk.accession_number}"
-        )
+        if chunk.chunk_source == "document":
+            print(
+                f"{index}. score={chunk.score:.4f} {chunk.label} "
+                f"url={chunk.url or '-'}"
+            )
+        else:
+            print(
+                f"{index}. score={chunk.score:.4f} {chunk.label} "
+                f"accession={chunk.accession_number or '-'}"
+            )
 
 
 def parse_args() -> argparse.Namespace:
