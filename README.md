@@ -144,6 +144,44 @@ npm run dev
 
 Open `http://localhost:5173`. The frontend calls `http://localhost:8000` by default.
 
+## Docker Images
+
+Build each application component independently:
+
+```bash
+docker build -f Dockerfile.api -t signalforge-api .
+docker build -f Dockerfile.worker -t signalforge-worker .
+docker build -f frontend/Dockerfile -t signalforge-frontend ./frontend
+```
+
+Run the API image:
+
+```bash
+docker run --rm -p 8000:8000 \
+  -e SIGNALFORGE_DATABASE_URL=postgresql+psycopg://user:password@host.docker.internal:5432/signalforge \
+  -e SIGNALFORGE_QDRANT_URL=http://host.docker.internal:6333 \
+  signalforge-api
+```
+
+Run the worker image with the same database and Qdrant configuration:
+
+```bash
+docker run --rm \
+  -e SIGNALFORGE_DATABASE_URL=postgresql+psycopg://user:password@host.docker.internal:5432/signalforge \
+  -e SIGNALFORGE_QDRANT_URL=http://host.docker.internal:6333 \
+  signalforge-worker
+```
+
+Run the frontend image and configure the API URL at container startup:
+
+```bash
+docker run --rm -p 8080:80 \
+  -e SIGNALFORGE_API_BASE_URL=http://localhost:8000 \
+  signalforge-frontend
+```
+
+Open `http://localhost:8080`.
+
 ## Useful Commands
 
 ```bash
@@ -202,6 +240,10 @@ The API supports these environment overrides:
 - `SIGNALFORGE_EMBEDDING_MODEL`
 - `SIGNALFORGE_PLANNER_MODEL`
 - `SIGNALFORGE_ANSWER_MODEL`
+- `SIGNALFORGE_CORS_ORIGINS`
+
+`SIGNALFORGE_CORS_ORIGINS` is a comma-separated browser origin allowlist. By default,
+the API allows the local Vite dev server and a frontend container mapped to port `8080`.
 
 Worker-specific overrides:
 
@@ -233,6 +275,8 @@ Set a custom frontend API URL with:
 ```bash
 VITE_API_BASE_URL=http://localhost:8000 npm run dev
 ```
+
+The frontend Docker image reads `SIGNALFORGE_API_BASE_URL` at container startup.
 
 ## Tests
 

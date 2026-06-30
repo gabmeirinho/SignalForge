@@ -1,3 +1,4 @@
+import os
 from collections import defaultdict
 
 from dotenv import load_dotenv
@@ -18,10 +19,25 @@ from signalforge.storage import (
 
 load_dotenv()
 
+DEFAULT_CORS_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+]
+
+
+def configured_cors_origins() -> list[str]:
+    value = os.getenv("SIGNALFORGE_CORS_ORIGINS")
+    if value is None:
+        return DEFAULT_CORS_ORIGINS
+    return [origin for raw_origin in value.split(",") if (origin := raw_origin.strip())]
+
+
 app = FastAPI(title="SignalForge API")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=configured_cors_origins(),
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],

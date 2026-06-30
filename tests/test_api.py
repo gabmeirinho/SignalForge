@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from signalforge.api import app
+from signalforge.api import app, configured_cors_origins
 from signalforge.query_planner import SearchPlan
 from signalforge.rag_service import QueryResponse, SourceChunk
 from signalforge.sections import TextChunk
@@ -20,6 +20,22 @@ from signalforge.storage import (
     upsert_filing,
     upsert_source,
 )
+
+
+def test_configured_cors_origins_uses_defaults(monkeypatch):
+    monkeypatch.delenv("SIGNALFORGE_CORS_ORIGINS", raising=False)
+
+    assert "http://localhost:5173" in configured_cors_origins()
+    assert "http://localhost:8080" in configured_cors_origins()
+
+
+def test_configured_cors_origins_parses_env(monkeypatch):
+    monkeypatch.setenv(
+        "SIGNALFORGE_CORS_ORIGINS",
+        " http://frontend.local , http://localhost:9000 ,,",
+    )
+
+    assert configured_cors_origins() == ["http://frontend.local", "http://localhost:9000"]
 
 
 def test_health_reports_local_paths(monkeypatch, tmp_path):
