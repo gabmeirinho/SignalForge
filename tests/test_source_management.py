@@ -160,3 +160,54 @@ def test_list_sources_cli_shows_candidate_reason(tmp_path):
 
     assert "[1] NVIDIA Blog (NVDA, candidate, enabled=yes)" in result.stdout
     assert "reason: RSS/Atom link discovered" in result.stdout
+
+
+def test_discover_sources_cli_shows_persisted_status(tmp_path, monkeypatch, capsys):
+    from signalforge.cli import discover_sources as discover_sources_cli
+    from signalforge.source_discovery import DiscoveredSource
+
+    db_path = tmp_path / "signalforge.sqlite3"
+
+    def fake_discover_sources_for_ticker(**kwargs):
+        assert kwargs["persist"] is True
+        return [
+            DiscoveredSource(
+                name="Amazon Press Center",
+                url="https://press.aboutamazon.com/",
+                final_url="https://press.aboutamazon.com/",
+                source_type="newsroom",
+                ownership="official",
+                trust_level="high",
+                confidence_score=0.85,
+                discovery_reason="already reviewed",
+                status_code=200,
+                rss_urls=(),
+                persisted_id=37,
+                discovery_status="rejected",
+                enabled=False,
+            )
+        ]
+
+    monkeypatch.setattr(
+        discover_sources_cli,
+        "discover_sources_for_ticker",
+        fake_discover_sources_for_ticker,
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "discover_sources",
+            "--db-path",
+            str(db_path),
+            "--ticker",
+            "AMZN",
+        ],
+    )
+
+    discover_sources_cli.main()
+    captured = capsys.readouterr()
+
+    assert "source_id: 37" in captured.out
+    assert "status: rejected" in captured.out
+    assert "enabled: no" in captured.out

@@ -122,6 +122,8 @@ class DiscoveredSource:
     status_code: int | None
     rss_urls: tuple[str, ...]
     persisted_id: int | None = None
+    discovery_status: str = "candidate"
+    enabled: bool = True
 
 
 class HttpxFetcher:
@@ -186,7 +188,13 @@ def discover_sources_for_ticker(
             continue
 
         persisted_id = None
+        discovery_status = "candidate"
+        enabled = True
         if persist:
+            discovery_status, enabled = source_discovery_state_for_upsert(
+                connection,
+                source.url,
+            )
             persisted_id = upsert_source(
                 connection,
                 SourceRecord(
@@ -196,8 +204,8 @@ def discover_sources_for_ticker(
                     source_type=source.source_type,
                     ownership=source.ownership,
                     trust_level=source.trust_level,
-                    discovery_status="candidate",
-                    enabled=True,
+                    discovery_status=discovery_status,
+                    enabled=enabled,
                     confidence_score=source.confidence_score,
                     discovery_reason=source.discovery_reason,
                 ),
@@ -215,6 +223,8 @@ def discover_sources_for_ticker(
                 status_code=source.status_code,
                 rss_urls=source.rss_urls,
                 persisted_id=persisted_id,
+                discovery_status=discovery_status,
+                enabled=enabled,
             )
         )
 
@@ -222,6 +232,20 @@ def discover_sources_for_ticker(
         _deduplicate_sources(candidates),
         key=lambda source: (-source.confidence_score, source.url),
     )
+
+
+def source_discovery_state_for_upsert(connection, url: str) -> tuple[str, bool]:
+    row = connection.execute(
+        """
+        SELECT discovery_status, enabled
+        FROM sources
+        WHERE url = ?
+        """,
+        (url,),
+    ).fetchone()
+    if row is None or row["discovery_status"] == "candidate":
+        return "candidate", True
+    return str(row["discovery_status"]), bool(row["enabled"])
 
 
 def resolve_company(

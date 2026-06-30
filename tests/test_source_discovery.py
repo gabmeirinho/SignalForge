@@ -12,10 +12,12 @@ from signalforge.source_discovery import (
 from signalforge.storage import (
     CompanyRecord,
     FilingMetadata,
+    SourceRecord,
     connect_database,
     initialize_database,
     upsert_filing,
     upsert_company,
+    upsert_source,
 )
 
 
@@ -222,6 +224,84 @@ def test_discover_sources_persists_candidates_for_known_company_domain(tmp_path)
     assert {row["source_type"] for row in rows} == {"company_blog", "investor_relations"}
     assert all(row["discovery_status"] == "candidate" for row in rows)
     assert all(row["confidence_score"] >= 0.8 for row in rows)
+
+
+@pytest.mark.parametrize(
+    ("existing_status", "existing_enabled"),
+    [
+        ("approved", True),
+        ("rejected", False),
+        ("manual", True),
+    ],
+)
+def test_discover_sources_preserves_human_source_state(
+    tmp_path,
+    existing_status,
+    existing_enabled,
+):
+    with connect_database(tmp_path / "signalforge.sqlite3") as connection:
+        initialize_database(connection)
+        company_id = upsert_company(
+            connection,
+            CompanyRecord(
+                ticker="NVDA",
+                name="NVIDIA CORP",
+                website_domain="nvidia.com",
+            ),
+        )
+        upsert_source(
+            connection,
+            SourceRecord(
+                company_id=company_id,
+                name="Old NVIDIA Blog",
+                url="https://blogs.nvidia.com/",
+                source_type="company_blog",
+                ownership="unknown",
+                trust_level="medium",
+                discovery_status=existing_status,
+                enabled=existing_enabled,
+                confidence_score=0.45,
+                discovery_reason="old metadata",
+            ),
+        )
+        fetcher = FakeFetcher(
+            {
+                "https://blogs.nvidia.com/": FetchResult(
+                    url="https://blogs.nvidia.com/",
+                    final_url="https://blogs.nvidia.com/",
+                    status_code=200,
+                    content_type="text/html",
+                    text="""
+                    <html>
+                      <head><title>NVIDIA Blog</title></head>
+                      <body>{body}</body>
+                    </html>
+                    """.format(body="Company blog update. " * 20),
+                ),
+            }
+        )
+
+        sources = discover_sources_for_ticker(
+            connection=connection,
+            ticker="NVDA",
+            fetcher=fetcher,
+        )
+        source = connection.execute(
+            """
+            SELECT *
+            FROM sources
+            WHERE url = 'https://blogs.nvidia.com/'
+            """
+        ).fetchone()
+
+    assert source["discovery_status"] == existing_status
+    assert source["enabled"] == int(existing_enabled)
+    assert sources[0].discovery_status == existing_status
+    assert sources[0].enabled is existing_enabled
+    assert source["name"] == "NVIDIA Blog"
+    assert source["ownership"] == "official"
+    assert source["confidence_score"] > 0.45
+    assert source["discovery_reason"] != "old metadata"
 
 
 def test_discover_sources_accepts_and_stores_website_domain(tmp_path):

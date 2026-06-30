@@ -32,6 +32,8 @@ def main() -> None:
         print(f"[{index}] {source.name}")
         print(f"    {source.url}")
         print(f"    source_id: {source_id}")
+        print(f"    status: {source.discovery_status}")
+        print(f"    enabled: {'yes' if source.enabled else 'no'}")
         print(f"    type: {source.source_type}")
         print(f"    ownership: {source.ownership}")
         print(f"    trust_level: {source.trust_level}")
