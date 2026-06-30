@@ -104,13 +104,21 @@ class QueryRequest(BaseModel):
 class SourceResponse(BaseModel):
     label: str
     score: float
+    chunk_source: str
     ticker: str | None
     company_name: str | None
     filing_date: str | None
+    published_at: str | None
     section_id: str | None
     section_title: str | None
     chunk_index: int | None
     accession_number: str | None
+    document_id: int | None
+    source_id: int | None
+    source_name: str | None
+    source_type: str | None
+    url: str | None
+    title: str | None
     text: str | None
 
 
@@ -253,13 +261,21 @@ def query_response_to_api(
             SourceResponse(
                 label=source.label,
                 score=source.score,
+                chunk_source=source.chunk_source,
                 ticker=source.ticker,
                 company_name=source.company_name,
                 filing_date=source.filing_date,
+                published_at=source.published_at,
                 section_id=source.section_id,
                 section_title=source.section_title,
                 chunk_index=source.chunk_index,
                 accession_number=source.accession_number,
+                document_id=source.document_id,
+                source_id=source.source_id,
+                source_name=source.source_name,
+                source_type=source.source_type,
+                url=source.url,
+                title=source.title,
                 text=source.text if include_source_text else None,
             )
             for source in response.sources

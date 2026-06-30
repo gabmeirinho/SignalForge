@@ -138,6 +138,16 @@ def initialize_database(connection: sqlite3.Connection) -> None:
             FOREIGN KEY (chunk_id) REFERENCES chunks(id) ON DELETE CASCADE
         );
 
+        CREATE TABLE IF NOT EXISTS document_chunk_embeddings (
+            document_chunk_id INTEGER NOT NULL,
+            embedding_model TEXT NOT NULL,
+            vector_collection TEXT NOT NULL,
+            vector_id TEXT NOT NULL,
+            embedded_at TEXT NOT NULL,
+            PRIMARY KEY (document_chunk_id, embedding_model, vector_collection),
+            FOREIGN KEY (document_chunk_id) REFERENCES document_chunks(id) ON DELETE CASCADE
+        );
+
         CREATE TABLE IF NOT EXISTS embedding_runs (
             filing_id INTEGER NOT NULL,
             embedding_model TEXT NOT NULL,
@@ -756,6 +766,79 @@ def load_chunks_for_vector_index(
         """,
         (embedding_model, vector_collection),
     ).fetchall()
+
+
+def load_document_chunks_for_vector_index(
+    connection: sqlite3.Connection,
+    *,
+    embedding_model: str,
+    vector_collection: str,
+) -> list[sqlite3.Row]:
+    return connection.execute(
+        """
+        SELECT
+            dc.id AS document_chunk_id,
+            dc.document_id,
+            dc.chunk_index,
+            dc.text,
+            d.source_id,
+            d.url,
+            d.title,
+            d.author,
+            d.published_at,
+            d.fetched_at,
+            d.document_type,
+            s.name AS source_name,
+            s.source_type,
+            s.ownership,
+            s.trust_level,
+            c.ticker,
+            c.name AS company_name
+        FROM document_chunks AS dc
+        JOIN documents AS d ON d.id = dc.document_id
+        JOIN sources AS s ON s.id = d.source_id
+        LEFT JOIN companies AS c ON c.id = s.company_id
+        LEFT JOIN document_chunk_embeddings AS dce
+          ON dce.document_chunk_id = dc.id
+         AND dce.embedding_model = ?
+         AND dce.vector_collection = ?
+        WHERE dce.document_chunk_id IS NULL
+          AND s.enabled = 1
+          AND s.discovery_status IN ('approved', 'manual')
+        ORDER BY d.id, dc.chunk_index
+        """,
+        (embedding_model, vector_collection),
+    ).fetchall()
+
+
+def record_document_chunk_embeddings(
+    connection: sqlite3.Connection,
+    *,
+    chunk_vector_ids: list[tuple[int, str]],
+    embedding_model: str,
+    vector_collection: str,
+) -> None:
+    embedded_at = datetime.now(UTC).isoformat()
+    connection.executemany(
+        """
+        INSERT INTO document_chunk_embeddings (
+            document_chunk_id,
+            embedding_model,
+            vector_collection,
+            vector_id,
+            embedded_at
+        )
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(document_chunk_id, embedding_model, vector_collection) DO UPDATE SET
+            vector_id = excluded.vector_id,
+            embedded_at = excluded.embedded_at
+        """,
+        [
+            (chunk_id, embedding_model, vector_collection, vector_id, embedded_at)
+            for chunk_id, vector_id in chunk_vector_ids
+        ],
+    )
+    connection.commit()
 
 
 def record_chunk_embeddings(

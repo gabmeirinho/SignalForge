@@ -12,6 +12,8 @@ from signalforge.storage import (
     create_source_ingestion_run,
     initialize_database,
     replace_document_chunks,
+    load_document_chunks_for_vector_index,
+    record_document_chunk_embeddings,
     upsert_company,
     upsert_document,
     upsert_source,
@@ -116,6 +118,61 @@ def test_generic_company_source_document_and_chunk_persistence(tmp_path):
         "ticker": "NVDA",
     }
     assert [row["char_count"] for row in chunks] == [12, 13]
+
+
+def test_document_chunk_embedding_tracking_filters_indexed_chunks(tmp_path):
+    with connect_database(tmp_path / "signalforge.sqlite3") as connection:
+        initialize_database(connection)
+        company_id = upsert_company(connection, CompanyRecord(ticker="NVDA", name="NVIDIA CORP"))
+        source_id = upsert_source(
+            connection,
+            SourceRecord(
+                company_id=company_id,
+                name="NVIDIA Blog",
+                url="https://blogs.nvidia.com/feed/",
+                source_type="news_feed",
+                ownership="official",
+                trust_level="high",
+                discovery_status="approved",
+            ),
+        )
+        document_id = upsert_document(
+            connection,
+            DocumentRecord(
+                source_id=source_id,
+                url="https://blogs.nvidia.com/blog/example/",
+                title="Example",
+                content_hash="d" * 64,
+                document_type="blog_post",
+            ),
+        )
+        replace_document_chunks(
+            connection,
+            document_id,
+            [GenericDocumentChunk(chunk_index=0, text="Document chunk.")],
+        )
+
+        rows = load_document_chunks_for_vector_index(
+            connection,
+            embedding_model="test-model",
+            vector_collection="test-collection",
+        )
+        record_document_chunk_embeddings(
+            connection,
+            chunk_vector_ids=[(int(rows[0]["document_chunk_id"]), "vector-id")],
+            embedding_model="test-model",
+            vector_collection="test-collection",
+        )
+        remaining = load_document_chunks_for_vector_index(
+            connection,
+            embedding_model="test-model",
+            vector_collection="test-collection",
+        )
+
+    assert len(rows) == 1
+    assert rows[0]["source_name"] == "NVIDIA Blog"
+    assert rows[0]["ticker"] == "NVDA"
+    assert remaining == []
 
 
 def test_generic_model_upserts_replace_existing_rows(tmp_path):

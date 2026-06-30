@@ -14,6 +14,7 @@ def test_format_evidence_labels_chunks_with_source_metadata():
             score=0.91,
             payload={
                 "ticker": "NVDA",
+                "form_type": "10-K",
                 "filing_date": "2026-02-25",
                 "section_id": "1A",
                 "section_title": "Risk Factors",
@@ -26,9 +27,42 @@ def test_format_evidence_labels_chunks_with_source_metadata():
 
     evidence = format_evidence(chunks)
 
-    assert evidence[0].label == "[1] NVDA 2026 Item 1A chunk 4"
+    assert evidence[0].label == "[1] NVDA 2026 10-K Item 1A chunk 4"
     assert evidence[0].metadata["accession_number"] == "0001045810-26-000021"
     assert evidence[0].text == "Supply chain risk."
+
+
+def test_format_evidence_labels_document_chunks_with_source_metadata():
+    chunks = [
+        SearchResult(
+            score=0.88,
+            payload={
+                "chunk_source": "document",
+                "document_id": 12,
+                "document_chunk_id": 44,
+                "source_id": 5,
+                "source_name": "NVIDIA Blog",
+                "source_type": "news_feed",
+                "ownership": "official",
+                "trust_level": "high",
+                "url": "https://blogs.nvidia.com/blog/ai-infrastructure/",
+                "title": "AI Infrastructure Update",
+                "published_at": "2026-03-12T10:00:00+00:00",
+                "document_type": "blog_post",
+                "ticker": "NVDA",
+                "company_name": "NVIDIA CORP",
+                "chunk_index": 0,
+                "text": "NVIDIA discusses AI infrastructure.",
+            },
+        )
+    ]
+
+    evidence = format_evidence(chunks)
+
+    assert evidence[0].label == '[1] NVIDIA Blog, 2026-03-12, "AI Infrastructure Update"'
+    assert evidence[0].metadata["chunk_source"] == "document"
+    assert evidence[0].metadata["url"] == "https://blogs.nvidia.com/blog/ai-infrastructure/"
+    assert evidence[0].text == "NVIDIA discusses AI infrastructure."
 
 
 def test_answer_generator_sends_question_plan_and_evidence_to_model():
@@ -47,6 +81,7 @@ def test_answer_generator_sends_question_plan_and_evidence_to_model():
             score=0.91,
             payload={
                 "ticker": "NVDA",
+                "form_type": "10-K",
                 "filing_date": "2026-02-25",
                 "section_id": "1A",
                 "chunk_index": 4,
@@ -60,7 +95,7 @@ def test_answer_generator_sends_question_plan_and_evidence_to_model():
     user_payload = json.loads(client.request["messages"][1]["content"])
 
     assert generated.answer == "NVIDIA cites supply-chain risks [1]."
-    assert generated.evidence_labels == ["[1] NVDA 2026 Item 1A chunk 4"]
+    assert generated.evidence_labels == ["[1] NVDA 2026 10-K Item 1A chunk 4"]
     assert user_payload["question"] == "What are NVIDIA's risks?"
     assert user_payload["retrieval_plan"]["tickers"] == ["NVDA"]
     assert user_payload["evidence"][0]["text"] == "Supply chain risk."
@@ -131,6 +166,7 @@ def test_extractive_answer_generator_returns_retrieved_evidence_without_model_ca
             score=0.91,
             payload={
                 "ticker": "NVDA",
+                "form_type": "10-K",
                 "filing_date": "2026-02-25",
                 "section_id": "1A",
                 "chunk_index": 4,
@@ -147,8 +183,8 @@ def test_extractive_answer_generator_returns_retrieved_evidence_without_model_ca
     )
 
     assert "DEEPSEEK_API_KEY is not set" in generated.answer
-    assert "[1] NVDA 2026 Item 1A chunk 4: Supply chain risk." in generated.answer
-    assert generated.evidence_labels == ["[1] NVDA 2026 Item 1A chunk 4"]
+    assert "[1] NVDA 2026 10-K Item 1A chunk 4: Supply chain risk." in generated.answer
+    assert generated.evidence_labels == ["[1] NVDA 2026 10-K Item 1A chunk 4"]
     assert generated.warnings == ["llm answer generation unavailable"]
 
 

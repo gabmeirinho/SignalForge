@@ -34,30 +34,36 @@ export function SourcesPanel({ sources }: SourcesPanelProps) {
         <div className="source-list">
           {sources.map((source) => {
             const isOpen = openLabels.has(source.label);
-            const filingYear = source.filing_date?.slice(0, 4) ?? "unknown";
+            const isDocument = source.chunk_source === "document";
+            const dateLabel = isDocument
+              ? source.published_at?.slice(0, 10) ?? "undated"
+              : source.filing_date?.slice(0, 4) ?? "unknown";
+            const detailLabel = isDocument
+              ? source.source_name ?? source.url ?? "Web document"
+              : `Item ${source.section_id ?? "-"}`;
             return (
               <article className="source-card" key={source.label}>
                 <button type="button" className="source-toggle" onClick={() => toggle(source.label)}>
                   <span>
                     <strong>{source.label}</strong>
                     <small>
-                      {source.ticker ?? "Unknown"} {filingYear} · Item {source.section_id ?? "-"}
+                      {source.ticker ?? "Unknown"} {dateLabel} · {detailLabel}
                     </small>
                   </span>
                   <ChevronDown className={isOpen ? "rotated" : ""} size={18} aria-hidden="true" />
                 </button>
                 <dl className="source-meta">
                   <div>
-                    <dt>Section</dt>
-                    <dd>{source.section_title ?? "Unknown"}</dd>
+                    <dt>{isDocument ? "Source" : "Section"}</dt>
+                    <dd>{isDocument ? source.source_type ?? "document" : source.section_title ?? "Unknown"}</dd>
                   </div>
                   <div>
                     <dt>Score</dt>
                     <dd>{source.score.toFixed(3)}</dd>
                   </div>
                   <div>
-                    <dt>Accession</dt>
-                    <dd>{source.accession_number ?? "-"}</dd>
+                    <dt>{isDocument ? "URL" : "Accession"}</dt>
+                    <dd>{isDocument ? source.url ?? "-" : source.accession_number ?? "-"}</dd>
                   </div>
                 </dl>
                 {isOpen && <p className="source-text">{source.text || "Source text not included."}</p>}

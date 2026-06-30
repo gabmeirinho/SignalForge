@@ -85,6 +85,7 @@ def index_chunks(
                     chunk_index=row["chunk_index"],
                 )
                 payload = {
+                    "chunk_source": "sec_filing",
                     "chunk_id": row["chunk_id"],
                     "filing_id": row["filing_id"],
                     "accession_number": accession_number,
@@ -139,6 +140,104 @@ def index_chunks(
     return indexed
 
 
+def index_document_chunks(
+    client: QdrantClient,
+    *,
+    rows: Iterable,
+    collection_name: str = DEFAULT_COLLECTION,
+    embedding_model: str = DEFAULT_EMBEDDING_MODEL,
+    batch_size: int = 16,
+    progress_callback: Callable[[int], None] | None = None,
+) -> list[tuple[int, str]]:
+    rows = list(rows)
+    ensure_collection(
+        client,
+        collection_name=collection_name,
+        embedding_model=embedding_model,
+    )
+
+    indexed = []
+    rows_by_document = defaultdict(list)
+    for row in rows:
+        rows_by_document[row["document_id"]].append(row)
+
+    for document_id, document_rows in rows_by_document.items():
+        current_vector_ids = set()
+        indexed_count = 0
+
+        for start in range(0, len(document_rows), batch_size):
+            batch = document_rows[start : start + batch_size]
+            points = []
+
+            for row in batch:
+                vector_id = make_document_vector_id(
+                    document_id=int(document_id),
+                    chunk_index=int(row["chunk_index"]),
+                )
+                payload = document_payload_from_row(row, embedding_model=embedding_model)
+                points.append(
+                    models.PointStruct(
+                        id=vector_id,
+                        vector=models.Document(text=row["text"], model=embedding_model),
+                        payload=payload,
+                    )
+                )
+                current_vector_ids.add(vector_id)
+                indexed.append((int(row["document_chunk_id"]), vector_id))
+
+            result = client.upsert(collection_name=collection_name, points=points, wait=True)
+            if result.status != models.UpdateStatus.COMPLETED:
+                raise RuntimeError(
+                    f"Qdrant upsert did not complete for document {document_id}: {result.status}"
+                )
+            indexed_count += len(points)
+            if progress_callback:
+                progress_callback(indexed_count)
+
+        delete_obsolete_document_points(
+            client,
+            collection_name=collection_name,
+            document_id=int(document_id),
+            current_vector_ids=current_vector_ids,
+        )
+        stored_vector_ids = fetch_vector_ids_for_document(
+            client,
+            collection_name=collection_name,
+            document_id=int(document_id),
+        )
+        if stored_vector_ids != current_vector_ids:
+            raise RuntimeError(
+                f"Qdrant verification failed for document {document_id}: "
+                f"expected {len(current_vector_ids)} points, found {len(stored_vector_ids)}"
+            )
+
+    return indexed
+
+
+def document_payload_from_row(row, *, embedding_model: str) -> dict:
+    return {
+        "chunk_source": "document",
+        "document_chunk_id": row["document_chunk_id"],
+        "document_id": row["document_id"],
+        "source_id": row["source_id"],
+        "source_name": row["source_name"],
+        "source_type": row["source_type"],
+        "ownership": row["ownership"],
+        "trust_level": row["trust_level"],
+        "url": row["url"],
+        "title": row["title"],
+        "author": row["author"],
+        "published_at": row["published_at"],
+        "fetched_at": row["fetched_at"],
+        "document_type": row["document_type"],
+        "ticker": row["ticker"],
+        "company_name": row["company_name"],
+        "chunk_index": row["chunk_index"],
+        "text": row["text"],
+        "embedding_model": embedding_model,
+    }
+
+
 def delete_obsolete_points(
     client: QdrantClient,
     *,
@@ -150,6 +249,30 @@ def delete_obsolete_points(
         client,
         collection_name=collection_name,
         accession_number=accession_number,
+    )
+    obsolete_vector_ids = existing_vector_ids - current_vector_ids
+
+    if obsolete_vector_ids:
+        client.delete(
+            collection_name=collection_name,
+            points_selector=models.PointIdsList(points=sorted(obsolete_vector_ids)),
+            wait=True,
+        )
+
+    return obsolete_vector_ids
+
+
+def delete_obsolete_document_points(
+    client: QdrantClient,
+    *,
+    collection_name: str,
+    document_id: int,
+    current_vector_ids: set[str],
+) -> set[str]:
+    existing_vector_ids = fetch_vector_ids_for_document(
+        client,
+        collection_name=collection_name,
+        document_id=document_id,
     )
     obsolete_vector_ids = existing_vector_ids - current_vector_ids
 
@@ -199,6 +322,46 @@ def fetch_vector_ids_for_accession(
     return vector_ids
 
 
+def fetch_vector_ids_for_document(
+    client: QdrantClient,
+    *,
+    collection_name: str,
+    document_id: int,
+    page_size: int = 256,
+) -> set[str]:
+    document_filter = models.Filter(
+        must=[
+            models.FieldCondition(
+                key="chunk_source",
+                match=models.MatchValue(value="document"),
+            ),
+            models.FieldCondition(
+                key="document_id",
+                match=models.MatchValue(value=document_id),
+            ),
+        ]
+    )
+    vector_ids = set()
+    offset = None
+
+    while True:
+        records, next_offset = client.scroll(
+            collection_name=collection_name,
+            scroll_filter=document_filter,
+            limit=page_size,
+            offset=offset,
+            with_payload=False,
+            with_vectors=False,
+        )
+        vector_ids.update(str(record.id) for record in records)
+
+        if next_offset is None:
+            break
+        offset = next_offset
+
+    return vector_ids
+
+
 def semantic_search(
     client: QdrantClient,
     *,
@@ -209,10 +372,15 @@ def semantic_search(
     ticker: str | None = None,
     section_id: str | None = None,
     accession_numbers: list[str] | None = None,
+    chunk_source: str | None = None,
 ) -> list[SearchResult]:
     client.set_model(embedding_model)
     conditions = []
 
+    if chunk_source:
+        conditions.append(
+            models.FieldCondition(key="chunk_source", match=models.MatchValue(value=chunk_source))
+        )
     if ticker:
         conditions.append(
             models.FieldCondition(key="ticker", match=models.MatchValue(value=ticker.upper()))
@@ -306,6 +474,17 @@ def retrieve_chunks(
                     accession_numbers=accession_numbers,
                 )
             )
+        results.extend(
+            semantic_search(
+                client,
+                query=query,
+                collection_name=collection_name,
+                embedding_model=embedding_model,
+                limit=limit,
+                ticker=ticker,
+                chunk_source="document",
+            )
+        )
 
     return _dedupe_results(results)[:limit]
 
@@ -342,6 +521,19 @@ def retrieve_period_chunks(
                 )
 
         results.extend(_dedupe_results(accession_results)[:per_accession_limit])
+
+    for ticker in tickers or [None]:
+        results.extend(
+            semantic_search(
+                client,
+                query=query,
+                collection_name=collection_name,
+                embedding_model=embedding_model,
+                limit=limit,
+                ticker=ticker,
+                chunk_source="document",
+            )
+        )
 
     return _dedupe_results(results)
 
@@ -382,6 +574,17 @@ def retrieve_comparison_chunks(
                     accession_numbers=ticker_accessions,
                 )
             )
+        ticker_results.extend(
+            semantic_search(
+                client,
+                query=query,
+                collection_name=collection_name,
+                embedding_model=embedding_model,
+                limit=per_ticker_limit,
+                ticker=ticker,
+                chunk_source="document",
+            )
+        )
 
         results.extend(_dedupe_results(ticker_results)[:per_ticker_limit])
 
@@ -393,8 +596,10 @@ def _dedupe_results(results: list[SearchResult]) -> list[SearchResult]:
     seen = set()
     for result in sorted(results, key=lambda result: result.score, reverse=True):
         payload = result.payload
-        key = payload.get("chunk_id") or (
+        key = payload.get("document_chunk_id") or payload.get("chunk_id") or (
+            payload.get("chunk_source"),
             payload.get("accession_number"),
+            payload.get("document_id"),
             payload.get("section_id"),
             payload.get("chunk_index"),
         )
@@ -407,4 +612,9 @@ def _dedupe_results(results: list[SearchResult]) -> list[SearchResult]:
 
 def make_vector_id(accession_number: str, section_id: str, chunk_index: int) -> str:
     key = f"{accession_number}:{section_id}:{chunk_index}"
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, key))
+
+
+def make_document_vector_id(document_id: int, chunk_index: int) -> str:
+    key = f"document:{document_id}:{chunk_index}"
     return str(uuid.uuid5(uuid.NAMESPACE_URL, key))

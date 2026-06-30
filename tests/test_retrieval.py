@@ -141,6 +141,52 @@ def test_semantic_search_skips_query_when_expected_accession_scope_is_empty():
     assert client.query_count == 0
 
 
+def test_retrieve_chunks_returns_mixed_sec_and_document_results():
+    client = FakeVectorClient(
+        [
+            {
+                "chunk_source": "sec_filing",
+                "accession_number": "0001045810-26-000021",
+                "ticker": "NVDA",
+                "filing_date": "2026-02-25",
+                "section_id": "1A",
+                "chunk_index": 0,
+                "text": "SEC supply constraint risk.",
+                "score": 0.91,
+            },
+            {
+                "chunk_source": "document",
+                "document_id": 12,
+                "document_chunk_id": 44,
+                "ticker": "NVDA",
+                "source_name": "NVIDIA Blog",
+                "title": "AI Infrastructure Update",
+                "published_at": "2026-03-12T10:00:00+00:00",
+                "chunk_index": 0,
+                "text": "Blog update about AI infrastructure.",
+                "score": 0.90,
+            },
+        ]
+    )
+
+    results = retrieve_chunks(
+        client,
+        query="NVIDIA AI infrastructure and supply constraints",
+        collection_name=COLLECTION,
+        embedding_model=MODEL,
+        limit=5,
+        tickers=["NVDA"],
+        section_ids=["1A"],
+        accession_numbers=["0001045810-26-000021"],
+    )
+
+    assert [result.payload["chunk_source"] for result in results] == [
+        "sec_filing",
+        "document",
+    ]
+    assert client.query_count == 2
+
+
 def test_comparison_retrieval_balances_results_by_ticker():
     client = FakeVectorClient(
         [
@@ -220,7 +266,7 @@ def test_comparison_retrieval_balances_results_by_ticker():
     assert set(tickers) == {"NVDA", "AMD"}
     assert tickers.count("NVDA") == 3
     assert tickers.count("AMD") == 3
-    assert client.query_count == 2
+    assert client.query_count == 4
 
 
 def test_trend_retrieval_balances_results_by_accession_year():
@@ -289,7 +335,7 @@ def test_trend_retrieval_balances_results_by_accession_year():
 
     years = {result.payload["filing_date"][:4] for result in results}
     assert years == {"2021", "2022", "2023", "2024", "2025"}
-    assert client.query_count == 5
+    assert client.query_count == 6
 
 
 def _insert_ready_filing(connection, *, accession_number: str, ticker: str, filing_date: str) -> None:

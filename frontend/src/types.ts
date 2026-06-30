@@ -45,13 +45,21 @@ export type SearchPlan = {
 export type SourceChunk = {
   label: string;
   score: number;
+  chunk_source: string;
   ticker: string | null;
   company_name: string | null;
   filing_date: string | null;
+  published_at: string | null;
   section_id: string | null;
   section_title: string | null;
   chunk_index: number | null;
   accession_number: string | null;
+  document_id: number | null;
+  source_id: number | null;
+  source_name: string | null;
+  source_type: string | null;
+  url: string | null;
+  title: string | null;
   text: string | null;
 };
 

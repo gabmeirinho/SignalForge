@@ -5,7 +5,9 @@ from signalforge.storage import (
     connect_database,
     initialize_database,
     load_chunks_for_vector_index,
+    load_document_chunks_for_vector_index,
     record_chunk_embeddings,
+    record_document_chunk_embeddings,
     set_embedding_run_status,
     update_embedding_run_progress,
 )
@@ -14,6 +16,7 @@ from signalforge.vector_store import (
     DEFAULT_EMBEDDING_MODEL,
     create_qdrant_client,
     index_chunks,
+    index_document_chunks,
 )
 
 
@@ -27,7 +30,12 @@ def main() -> None:
             embedding_model=args.model,
             vector_collection=args.collection,
         )
-        if not rows:
+        document_rows = load_document_chunks_for_vector_index(
+            connection,
+            embedding_model=args.model,
+            vector_collection=args.collection,
+        )
+        if not rows and not document_rows:
             print(
                 "No chunks require indexing for collection "
                 f"{args.collection!r} using {args.model!r}."
@@ -102,6 +110,22 @@ def main() -> None:
                         indexed_point_count=expected_count,
                     )
                     total_indexed += len(indexed)
+
+            if document_rows:
+                indexed = index_document_chunks(
+                    client,
+                    rows=document_rows,
+                    collection_name=args.collection,
+                    embedding_model=args.model,
+                    batch_size=args.batch_size,
+                )
+                record_document_chunk_embeddings(
+                    connection,
+                    chunk_vector_ids=indexed,
+                    embedding_model=args.model,
+                    vector_collection=args.collection,
+                )
+                total_indexed += len(indexed)
         finally:
             client.close()
 

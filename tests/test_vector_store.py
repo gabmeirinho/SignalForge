@@ -4,7 +4,9 @@ from qdrant_client import QdrantClient, models
 
 from signalforge.vector_store import (
     delete_obsolete_points,
+    document_payload_from_row,
     fetch_vector_ids_for_accession,
+    make_document_vector_id,
     make_vector_id,
 )
 
@@ -17,6 +19,62 @@ def test_make_vector_id_is_stable_and_qdrant_compatible():
     assert first == second
     assert first != different
     assert str(uuid.UUID(first)) == first
+
+
+def test_make_document_vector_id_is_stable_and_qdrant_compatible():
+    first = make_document_vector_id(42, 1)
+    second = make_document_vector_id(42, 1)
+    different = make_document_vector_id(42, 2)
+
+    assert first == second
+    assert first != different
+    assert str(uuid.UUID(first)) == first
+
+
+def test_document_payload_from_row_includes_mixed_corpus_metadata():
+    row = {
+        "document_chunk_id": 7,
+        "document_id": 3,
+        "source_id": 2,
+        "source_name": "NVIDIA Blog",
+        "source_type": "news_feed",
+        "ownership": "official",
+        "trust_level": "high",
+        "url": "https://blogs.nvidia.com/blog/example/",
+        "title": "AI Infrastructure Update",
+        "author": "NVIDIA",
+        "published_at": "2026-03-12T10:00:00+00:00",
+        "fetched_at": "2026-03-13T10:00:00+00:00",
+        "document_type": "blog_post",
+        "ticker": "NVDA",
+        "company_name": "NVIDIA CORP",
+        "chunk_index": 0,
+        "text": "AI infrastructure update.",
+    }
+
+    payload = document_payload_from_row(row, embedding_model="test-model")
+
+    assert payload == {
+        "chunk_source": "document",
+        "document_chunk_id": 7,
+        "document_id": 3,
+        "source_id": 2,
+        "source_name": "NVIDIA Blog",
+        "source_type": "news_feed",
+        "ownership": "official",
+        "trust_level": "high",
+        "url": "https://blogs.nvidia.com/blog/example/",
+        "title": "AI Infrastructure Update",
+        "author": "NVIDIA",
+        "published_at": "2026-03-12T10:00:00+00:00",
+        "fetched_at": "2026-03-13T10:00:00+00:00",
+        "document_type": "blog_post",
+        "ticker": "NVDA",
+        "company_name": "NVIDIA CORP",
+        "chunk_index": 0,
+        "text": "AI infrastructure update.",
+        "embedding_model": "test-model",
+    }
 
 
 def test_delete_obsolete_points_only_removes_stale_ids_for_accession(tmp_path):
