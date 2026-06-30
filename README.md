@@ -154,6 +154,12 @@ uv run python -m signalforge.cli.discover_sources --ticker NVDA --website-domain
 uv run python -m signalforge.cli.plan_query "Compare NVDA and MSFT risk factors"
 ```
 
+Create or update a database schema with Alembic migrations:
+
+```bash
+uv run alembic -c alembic.ini upgrade head
+```
+
 ## API Metadata
 
 `GET /api/index` returns the local index state used by the frontend:

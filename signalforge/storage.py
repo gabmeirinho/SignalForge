@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+from signalforge.migrations import upgrade_database
 from signalforge.sections import TextChunk
 
 SOURCE_TYPES = {
@@ -115,6 +116,11 @@ def _sqlite_path_from_target(target: str | Path) -> Path:
 
 
 def initialize_database(connection: sqlite3.Connection) -> None:
+    migration_target = _migration_target_for_empty_database(connection)
+    if migration_target is not None:
+        upgrade_database(migration_target)
+        return
+
     connection.executescript(
         """
         PRAGMA foreign_keys = ON;
@@ -306,6 +312,28 @@ def initialize_database(connection: sqlite3.Connection) -> None:
     if "raw_sha256" not in filing_columns:
         connection.execute("ALTER TABLE filings ADD COLUMN raw_sha256 TEXT")
     connection.commit()
+
+
+def _migration_target_for_empty_database(connection: sqlite3.Connection) -> str | None:
+    user_tables = {
+        row["name"]
+        for row in connection.execute(
+            """
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table'
+              AND name NOT LIKE 'sqlite_%'
+              AND name != 'alembic_version'
+            """
+        ).fetchall()
+    }
+    if user_tables:
+        return None
+
+    database_path = connection.execute("PRAGMA database_list").fetchone()["file"]
+    if not database_path:
+        return None
+    return database_path
 
 
 def upsert_company(connection: sqlite3.Connection, company: CompanyRecord) -> int:

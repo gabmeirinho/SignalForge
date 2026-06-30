@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import quote, unquote, urlparse
 
 from signalforge.answer_generator import DEFAULT_ANSWER_MODEL
 from signalforge.query_planner import DEFAULT_PLANNER_MODEL
@@ -71,3 +71,27 @@ def target_exists(target: str) -> bool:
     if parsed.scheme:
         return True
     return Path(target).exists()
+
+
+def sqlalchemy_database_url(target: str) -> str:
+    parsed = urlparse(target)
+
+    if parsed.scheme == "":
+        db_path = Path(target)
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        return f"sqlite:///{quote(str(db_path), safe='/')}"
+
+    if parsed.scheme == "file":
+        db_path = Path(unquote(parsed.path))
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        return f"sqlite:///{quote(str(db_path), safe='/')}"
+
+    if parsed.scheme == "sqlite":
+        db_path = Path(unquote(parsed.path))
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        return target
+
+    if parsed.scheme in {"postgres", "postgresql"}:
+        return target.replace(f"{parsed.scheme}://", "postgresql+psycopg://", 1)
+
+    return target
