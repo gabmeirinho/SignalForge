@@ -26,8 +26,34 @@ export type IndexTicker = {
   sections: IndexSection[];
 };
 
+export type IndexSource = {
+  id: number;
+  ticker: string | null;
+  company_name: string | null;
+  name: string;
+  url: string;
+  source_type: string;
+  ownership: string;
+  trust_level: string;
+  discovery_status: string;
+  enabled: boolean;
+  confidence_score: number | null;
+  document_count: number;
+  last_ingestion_status: string | null;
+  last_ingestion_completed_at: string | null;
+};
+
+export type IndexSummary = {
+  indexed_filing_count: number;
+  approved_source_count: number;
+  candidate_source_count: number;
+  document_count: number;
+};
+
 export type IndexResponse = {
   tickers: IndexTicker[];
+  sources: IndexSource[];
+  summary: IndexSummary;
   embedding_model: string;
   collection: string;
 };

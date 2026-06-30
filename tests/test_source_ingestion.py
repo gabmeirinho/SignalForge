@@ -4,6 +4,7 @@ from signalforge.sections import chunk_text
 from signalforge.source_ingestion import (
     DEFAULT_USER_AGENT,
     discover_feed_links,
+    fetch_article,
     ingest_approved_sources,
     parse_feed_entries,
 )
@@ -84,6 +85,22 @@ def test_discover_feed_links_finds_rss_and_atom_alternates():
         "https://example.com/feed.xml",
         "https://example.com/atom.xml",
     ]
+
+
+def test_fetch_article_falls_back_to_bs4_extraction(monkeypatch):
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert str(request.url) == "https://example.com/article"
+        return httpx.Response(200, text=ARTICLE_HTML)
+
+    monkeypatch.setattr("signalforge.source_ingestion.trafilatura.extract", lambda *args, **kwargs: None)
+
+    with httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=True) as client:
+        article = fetch_article(client, "https://example.com/article")
+
+    assert article.title == "AI Infrastructure Update"
+    assert article.text is not None
+    assert "Example is expanding AI infrastructure capacity" in article.text
+    assert "script" not in article.text.lower()
 
 
 def test_ingest_approved_sources_fetches_feed_articles_and_chunks_documents(tmp_path):

@@ -92,6 +92,7 @@ button:disabled {
 }
 
 .ticker-list,
+.source-summary-list,
 .source-list,
 .side-panels {
   display: flex;
@@ -99,7 +100,39 @@ button:disabled {
   gap: 12px;
 }
 
+.index-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.index-summary div {
+  min-height: 58px;
+  padding: 9px;
+  border: 1px solid #e0e6ed;
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.index-summary strong,
+.index-summary span {
+  display: block;
+}
+
+.index-summary strong {
+  color: #17202a;
+  font-size: 18px;
+}
+
+.index-summary span {
+  margin-top: 3px;
+  color: #637083;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
 .ticker-card,
+.source-summary-row,
 .source-card,
 .panel,
 .query-composer {
@@ -190,6 +223,61 @@ button:disabled {
   padding: 5px 8px;
   background: #eef3f1;
   color: #24564f;
+}
+
+.source-summary {
+  padding-top: 4px;
+}
+
+.source-summary-heading {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  color: #334155;
+}
+
+.source-summary-heading h3 {
+  margin: 0;
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+.source-summary-row {
+  padding: 10px;
+}
+
+.source-summary-row strong,
+.source-summary-row small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-summary-row strong {
+  font-size: 13px;
+}
+
+.source-summary-row small,
+.source-summary-meta {
+  color: #637083;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.source-summary-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.source-summary-meta span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .workspace {

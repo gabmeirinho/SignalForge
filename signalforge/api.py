@@ -13,6 +13,7 @@ from signalforge.rag_service import QueryResponse, answer_question
 from signalforge.storage import (
     connect_database,
     initialize_database,
+    list_sources,
     load_index_metadata,
     load_index_section_counts,
 )
@@ -82,8 +83,34 @@ class IndexTicker(BaseModel):
     sections: list[IndexSection]
 
 
+class IndexSource(BaseModel):
+    id: int
+    ticker: str | None
+    company_name: str | None
+    name: str
+    url: str
+    source_type: str
+    ownership: str
+    trust_level: str
+    discovery_status: str
+    enabled: bool
+    confidence_score: float | None
+    document_count: int
+    last_ingestion_status: str | None
+    last_ingestion_completed_at: str | None
+
+
+class IndexSummary(BaseModel):
+    indexed_filing_count: int
+    approved_source_count: int
+    candidate_source_count: int
+    document_count: int
+
+
 class IndexResponse(BaseModel):
     tickers: list[IndexTicker]
+    sources: list[IndexSource]
+    summary: IndexSummary
     embedding_model: str
     collection: str
 
@@ -155,6 +182,7 @@ def index() -> IndexResponse:
             vector_collection=config.collection,
         )
         section_rows = load_index_section_counts(connection)
+        source_rows = list_sources(connection)
 
     sections_by_ticker: dict[str, list[IndexSection]] = defaultdict(list)
     for row in section_rows:
@@ -197,9 +225,44 @@ def index() -> IndexResponse:
         )
         for group in ticker_groups.values()
     ]
+    sources = [
+        IndexSource(
+            id=int(row["id"]),
+            ticker=row["ticker"],
+            company_name=row["company_name"],
+            name=row["name"],
+            url=row["url"],
+            source_type=row["source_type"],
+            ownership=row["ownership"],
+            trust_level=row["trust_level"],
+            discovery_status=row["discovery_status"],
+            enabled=bool(row["enabled"]),
+            confidence_score=row["confidence_score"],
+            document_count=int(row["document_count"]),
+            last_ingestion_status=row["last_ingestion_status"],
+            last_ingestion_completed_at=row["last_ingestion_completed_at"],
+        )
+        for row in source_rows
+    ]
+    summary = IndexSummary(
+        indexed_filing_count=sum(
+            1
+            for row in filing_rows
+            if row["status"] == "ready"
+            and int(row["expected_point_count"]) > 0
+            and int(row["indexed_point_count"]) >= int(row["expected_point_count"])
+        ),
+        approved_source_count=sum(
+            1 for source in sources if source.discovery_status in {"approved", "manual"} and source.enabled
+        ),
+        candidate_source_count=sum(1 for source in sources if source.discovery_status == "candidate"),
+        document_count=sum(source.document_count for source in sources),
+    )
 
     return IndexResponse(
         tickers=tickers,
+        sources=sources,
+        summary=summary,
         embedding_model=config.embedding_model,
         collection=config.collection,
     )
