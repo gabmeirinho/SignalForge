@@ -368,8 +368,10 @@ def classify_fetch_result(
         title,
         rss_urls,
     )
+    source_url = preferred_source_url(final_url, rss_urls, source_type)
     score, reasons = score_candidate(
         url=result.url if is_official_domain(result.url, official_domain) else final_url,
+        selected_url=source_url,
         official_domain=official_domain,
         title=title,
         rss_urls=rss_urls,
@@ -383,9 +385,9 @@ def classify_fetch_result(
     ownership = "official" if official_match else "unknown"
     return DiscoveredSource(
         name=build_source_name(final_url, title, source_type),
-        url=preferred_source_url(final_url, rss_urls, source_type),
+        url=source_url,
         final_url=final_url,
-        source_type="news_feed" if is_feed_url(preferred_source_url(final_url, rss_urls, source_type)) else source_type,
+        source_type="news_feed" if is_feed_url(source_url) else source_type,
         ownership=ownership,
         trust_level=trust_level_from_score(score),
         confidence_score=round(score, 2),
@@ -422,6 +424,7 @@ def inspect_content(result: FetchResult, final_url: str) -> tuple[str | None, st
 def score_candidate(
     *,
     url: str,
+    selected_url: str,
     official_domain: str,
     title: str | None,
     rss_urls: list[str],
@@ -449,6 +452,10 @@ def score_candidate(
     if rss_urls:
         score += 0.15
         reasons.append("RSS/Atom link discovered")
+
+    if is_feed_url(selected_url):
+        score += 0.05
+        reasons.append("selected source URL is an RSS/Atom feed")
 
     if reachable:
         score += 0.10
@@ -567,7 +574,7 @@ def trust_level_from_score(score: float) -> str:
 
 def is_feed_url(url: str) -> bool:
     path = urlparse(url).path.lower()
-    return path.endswith((".xml", "/feed", "/rss", "/atom")) or "/feed/" in path
+    return path.endswith((".xml", ".rss", "/feed", "/rss", "/atom")) or "/feed/" in path
 
 
 def is_feed_response(result: FetchResult) -> bool:

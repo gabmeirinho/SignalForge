@@ -112,6 +112,34 @@ def test_classify_fetch_result_scores_official_blog_with_feed():
     assert "RSS/Atom link discovered" in source.discovery_reason
 
 
+def test_classify_fetch_result_adds_direct_feed_url_bonus():
+    result = FetchResult(
+        url="https://www.aboutamazon.com/rss/feed.rss",
+        final_url="https://www.aboutamazon.com/rss/feed.rss",
+        status_code=200,
+        content_type="application/rss+xml",
+        text="""
+        <rss version="2.0">
+          <channel>
+            <item>
+              <title>Fulfillment update</title>
+              <link>https://www.aboutamazon.com/news/example</link>
+              <description>{body}</description>
+            </item>
+          </channel>
+        </rss>
+        """.format(body="Amazon company update. " * 20),
+    )
+
+    source = classify_fetch_result(result, official_domain="aboutamazon.com")
+
+    assert source is not None
+    assert source.url == "https://www.aboutamazon.com/rss/feed.rss"
+    assert source.source_type == "news_feed"
+    assert source.confidence_score == 0.90
+    assert "selected source URL is an RSS/Atom feed" in source.discovery_reason
+
+
 def test_classify_fetch_result_skips_404s():
     result = FetchResult(
         url="https://nvidia.com/blog",
