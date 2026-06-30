@@ -1,22 +1,8 @@
 import argparse
-from collections import defaultdict
 
 from signalforge.config import RuntimeConfig
-from signalforge.storage import (
-    connect_database,
-    initialize_database,
-    load_chunks_for_vector_index,
-    load_document_chunks_for_vector_index,
-    record_chunk_embeddings,
-    record_document_chunk_embeddings,
-    set_embedding_run_status,
-    update_embedding_run_progress,
-)
-from signalforge.vector_store import (
-    create_qdrant_client,
-    index_chunks,
-    index_document_chunks,
-)
+from signalforge.storage import connect_database, initialize_database
+from signalforge.vectorization import vectorize_pending_chunks
 
 
 def main() -> None:
@@ -24,112 +10,23 @@ def main() -> None:
 
     with connect_database(args.db_path) as connection:
         initialize_database(connection)
-        rows = load_chunks_for_vector_index(
+        result = vectorize_pending_chunks(
             connection,
+            qdrant_target=args.qdrant_path,
+            collection=args.collection,
             embedding_model=args.model,
-            vector_collection=args.collection,
+            batch_size=args.batch_size,
         )
-        document_rows = load_document_chunks_for_vector_index(
-            connection,
-            embedding_model=args.model,
-            vector_collection=args.collection,
-        )
-        if not rows and not document_rows:
+
+        if result.indexed_count == 0:
             print(
                 "No chunks require indexing for collection "
                 f"{args.collection!r} using {args.model!r}."
             )
             return
 
-        rows_by_filing = defaultdict(list)
-        for row in rows:
-            rows_by_filing[int(row["filing_id"])].append(row)
-
-        client = create_qdrant_client(args.qdrant_path)
-        total_indexed = 0
-        try:
-            for filing_id, filing_rows in rows_by_filing.items():
-                expected_count = len(filing_rows)
-                indexed_count = 0
-                set_embedding_run_status(
-                    connection,
-                    filing_id=filing_id,
-                    embedding_model=args.model,
-                    vector_collection=args.collection,
-                    status="indexing",
-                    expected_point_count=expected_count,
-                )
-
-                def update_progress(count: int) -> None:
-                    nonlocal indexed_count
-                    indexed_count = count
-                    update_embedding_run_progress(
-                        connection,
-                        filing_id=filing_id,
-                        embedding_model=args.model,
-                        vector_collection=args.collection,
-                        indexed_point_count=count,
-                    )
-
-                try:
-                    indexed = index_chunks(
-                        client,
-                        rows=filing_rows,
-                        collection_name=args.collection,
-                        embedding_model=args.model,
-                        batch_size=args.batch_size,
-                        progress_callback=update_progress,
-                    )
-                    record_chunk_embeddings(
-                        connection,
-                        chunk_vector_ids=indexed,
-                        embedding_model=args.model,
-                        vector_collection=args.collection,
-                    )
-                except Exception as error:
-                    set_embedding_run_status(
-                        connection,
-                        filing_id=filing_id,
-                        embedding_model=args.model,
-                        vector_collection=args.collection,
-                        status="failed",
-                        expected_point_count=expected_count,
-                        indexed_point_count=indexed_count,
-                        error_message=str(error),
-                    )
-                    raise
-                else:
-                    set_embedding_run_status(
-                        connection,
-                        filing_id=filing_id,
-                        embedding_model=args.model,
-                        vector_collection=args.collection,
-                        status="ready",
-                        expected_point_count=expected_count,
-                        indexed_point_count=expected_count,
-                    )
-                    total_indexed += len(indexed)
-
-            if document_rows:
-                indexed = index_document_chunks(
-                    client,
-                    rows=document_rows,
-                    collection_name=args.collection,
-                    embedding_model=args.model,
-                    batch_size=args.batch_size,
-                )
-                record_document_chunk_embeddings(
-                    connection,
-                    chunk_vector_ids=indexed,
-                    embedding_model=args.model,
-                    vector_collection=args.collection,
-                )
-                total_indexed += len(indexed)
-        finally:
-            client.close()
-
     print(
-        f"Indexed {total_indexed} chunks into Qdrant collection "
+        f"Indexed {result.indexed_count} chunks into Qdrant collection "
         f"{args.collection!r} using {args.model!r}."
     )
 

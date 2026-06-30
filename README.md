@@ -86,6 +86,12 @@ Build or refresh the mixed SEC/document vector index:
 uv run python -m signalforge.cli.vectorize
 ```
 
+Run the background worker loop for approved source ingestion and vectorization:
+
+```bash
+uv run python -m signalforge.worker
+```
+
 Ask a mixed-corpus research question:
 
 ```bash
@@ -196,6 +202,17 @@ The API supports these environment overrides:
 - `SIGNALFORGE_EMBEDDING_MODEL`
 - `SIGNALFORGE_PLANNER_MODEL`
 - `SIGNALFORGE_ANSWER_MODEL`
+
+Worker-specific overrides:
+
+- `SIGNALFORGE_WORKER_INTERVAL_SECONDS`
+- `SIGNALFORGE_INGEST_LIMIT_PER_SOURCE`
+- `SIGNALFORGE_ENABLE_SCHEDULED_INGESTION`
+- `SIGNALFORGE_PROCESSED_DIR`
+- `SIGNALFORGE_CHUNK_SIZE`
+- `SIGNALFORGE_CHUNK_OVERLAP`
+- `SIGNALFORGE_VECTORIZE_BATCH_SIZE`
+- `SIGNALFORGE_LOG_LEVEL`
 
 `SIGNALFORGE_DATABASE_URL` takes precedence over `SIGNALFORGE_DB_PATH`.
 `SIGNALFORGE_QDRANT_URL` takes precedence over `SIGNALFORGE_QDRANT_PATH`.
