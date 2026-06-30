@@ -3,6 +3,7 @@ import uuid
 from qdrant_client import QdrantClient, models
 
 from signalforge.vector_store import (
+    create_qdrant_client,
     delete_obsolete_points,
     document_payload_from_row,
     fetch_vector_ids_for_accession,
@@ -75,6 +76,48 @@ def test_document_payload_from_row_includes_mixed_corpus_metadata():
         "text": "AI infrastructure update.",
         "embedding_model": "test-model",
     }
+
+
+def test_create_qdrant_client_uses_embedded_path_for_local_target(monkeypatch, tmp_path):
+    calls = []
+
+    class FakeQdrantClient:
+        def __init__(self, **kwargs):
+            calls.append(kwargs)
+
+    monkeypatch.setattr("signalforge.vector_store.QdrantClient", FakeQdrantClient)
+
+    create_qdrant_client(tmp_path / "nested" / "qdrant")
+
+    assert calls == [{"path": str(tmp_path / "nested" / "qdrant")}]
+    assert (tmp_path / "nested").exists()
+
+
+def test_create_qdrant_client_uses_url_for_server_target(monkeypatch):
+    calls = []
+
+    class FakeQdrantClient:
+        def __init__(self, **kwargs):
+            calls.append(kwargs)
+
+    monkeypatch.setattr("signalforge.vector_store.QdrantClient", FakeQdrantClient)
+
+    create_qdrant_client("http://localhost:6333")
+    create_qdrant_client("https://qdrant.example.com")
+
+    assert calls == [
+        {"url": "http://localhost:6333"},
+        {"url": "https://qdrant.example.com"},
+    ]
+
+
+def test_create_qdrant_client_rejects_unsupported_url_scheme():
+    try:
+        create_qdrant_client("grpc://localhost:6334")
+    except ValueError as error:
+        assert "Unsupported Qdrant target scheme" in str(error)
+    else:
+        raise AssertionError("Expected unsupported Qdrant scheme to fail")
 
 
 def test_delete_obsolete_points_only_removes_stale_ids_for_accession(tmp_path):

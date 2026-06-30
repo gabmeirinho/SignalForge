@@ -205,6 +205,12 @@ For Postgres, use a URL such as:
 SIGNALFORGE_DATABASE_URL=postgresql+psycopg://user:password@localhost:5432/signalforge
 ```
 
+For Qdrant server mode, use:
+
+```bash
+SIGNALFORGE_QDRANT_URL=http://localhost:6333
+```
+
 Set a custom frontend API URL with:
 
 ```bash

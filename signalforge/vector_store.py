@@ -19,11 +19,16 @@ class SearchResult:
     payload: dict
 
 
-def create_qdrant_client(path: str | Path) -> QdrantClient:
-    target = str(path)
+def create_qdrant_client(target: str | Path) -> QdrantClient:
+    target = str(target)
     parsed = urlparse(target)
     if parsed.scheme in {"http", "https"}:
         return QdrantClient(url=target)
+    if parsed.scheme:
+        raise ValueError(
+            "Unsupported Qdrant target scheme. Use an http(s) URL for server mode "
+            "or a filesystem path for embedded local mode."
+        )
 
     qdrant_path = Path(target)
     qdrant_path.parent.mkdir(parents=True, exist_ok=True)

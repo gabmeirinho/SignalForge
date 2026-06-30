@@ -40,6 +40,18 @@ def test_health_reports_local_paths(monkeypatch, tmp_path):
     }
 
 
+def test_health_accepts_qdrant_server_url(monkeypatch, tmp_path):
+    db_path = tmp_path / "signalforge.sqlite3"
+    db_path.touch()
+    monkeypatch.setenv("SIGNALFORGE_DB_PATH", str(db_path))
+    monkeypatch.setenv("SIGNALFORGE_QDRANT_URL", "http://localhost:6333")
+
+    response = TestClient(app).get("/health")
+
+    assert response.status_code == 200
+    assert response.json()["qdrant_path"] is True
+
+
 def test_index_returns_filings_and_section_counts(monkeypatch, tmp_path):
     db_path = tmp_path / "signalforge.sqlite3"
     qdrant_path = tmp_path / "qdrant"
