@@ -4,10 +4,9 @@ import textwrap
 from pathlib import Path
 
 from signalforge.answer_generator import format_source_label
+from signalforge.config import RuntimeConfig
 from signalforge.storage import connect_database, get_ready_accession_numbers, initialize_database
 from signalforge.vector_store import (
-    DEFAULT_COLLECTION,
-    DEFAULT_EMBEDDING_MODEL,
     create_qdrant_client,
     retrieve_chunks,
 )
@@ -273,6 +272,7 @@ def print_retrieved_chunks(results, *, preview_chars: int, show_full_text: bool)
 
 
 def parse_args() -> argparse.Namespace:
+    config = RuntimeConfig.from_environment()
     parser = argparse.ArgumentParser(
         description="Evaluate retrieval results for planner golden cases."
     )
@@ -283,10 +283,10 @@ def parse_args() -> argparse.Namespace:
         help=f"Golden dataset path (default: {DEFAULT_DATASET})",
     )
     parser.add_argument("--case-id", help="Run one golden case by id.")
-    parser.add_argument("--db-path", default="data/signalforge.sqlite3")
-    parser.add_argument("--qdrant-path", default="data/qdrant")
-    parser.add_argument("--collection", default=DEFAULT_COLLECTION)
-    parser.add_argument("--model", default=DEFAULT_EMBEDDING_MODEL)
+    parser.add_argument("--db-path", default=config.database_target)
+    parser.add_argument("--qdrant-path", default=config.qdrant_target)
+    parser.add_argument("--collection", default=config.collection)
+    parser.add_argument("--model", default=config.embedding_model)
     parser.add_argument("--limit", type=int, default=5)
     parser.add_argument("--preview-chars", type=int, default=800)
     parser.add_argument(

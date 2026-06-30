@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from math import ceil
 from pathlib import Path
 from typing import Callable, Iterable
+from urllib.parse import urlparse
 
 from qdrant_client import QdrantClient, models
 
@@ -19,7 +20,12 @@ class SearchResult:
 
 
 def create_qdrant_client(path: str | Path) -> QdrantClient:
-    qdrant_path = Path(path)
+    target = str(path)
+    parsed = urlparse(target)
+    if parsed.scheme in {"http", "https"}:
+        return QdrantClient(url=target)
+
+    qdrant_path = Path(target)
     qdrant_path.parent.mkdir(parents=True, exist_ok=True)
     return QdrantClient(path=str(qdrant_path))
 

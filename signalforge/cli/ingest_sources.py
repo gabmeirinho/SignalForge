@@ -1,5 +1,6 @@
 import argparse
 
+from signalforge.config import RuntimeConfig
 from signalforge.source_ingestion import ingest_approved_sources
 from signalforge.storage import connect_database
 
@@ -32,9 +33,10 @@ def main() -> None:
 
 
 def parse_args() -> argparse.Namespace:
+    config = RuntimeConfig.from_environment()
     parser = argparse.ArgumentParser(description="Ingest approved RSS/blog sources.")
     parser.add_argument("--ticker", help="Optional ticker to limit approved sources.")
-    parser.add_argument("--db-path", default="data/signalforge.sqlite3")
+    parser.add_argument("--db-path", default=config.database_target)
     parser.add_argument("--processed-dir", default="data/processed")
     parser.add_argument("--chunk-size", type=int, default=4_000)
     parser.add_argument("--overlap", type=int, default=500)

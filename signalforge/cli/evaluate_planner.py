@@ -4,8 +4,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from signalforge.config import RuntimeConfig
 from signalforge.query_planner import (
-    DEFAULT_PLANNER_MODEL,
     PLANNER_PROMPT_VERSION,
     PLANNER_TEMPERATURE,
     DeepSeekQueryPlanner,
@@ -76,6 +76,7 @@ def compare_plan(actual: dict, expected: dict) -> list[str]:
 
 
 def parse_args() -> argparse.Namespace:
+    config = RuntimeConfig.from_environment()
     parser = argparse.ArgumentParser(description="Evaluate the LLM planner on golden cases.")
     parser.add_argument(
         "--dataset",
@@ -83,7 +84,7 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_DATASET,
         help=f"Golden dataset path (default: {DEFAULT_DATASET})",
     )
-    parser.add_argument("--model", default=DEFAULT_PLANNER_MODEL)
+    parser.add_argument("--model", default=config.planner_model)
     return parser.parse_args()
 
 

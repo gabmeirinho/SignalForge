@@ -1,6 +1,7 @@
 import argparse
 from collections import defaultdict
 
+from signalforge.config import RuntimeConfig
 from signalforge.storage import (
     connect_database,
     initialize_database,
@@ -12,8 +13,6 @@ from signalforge.storage import (
     update_embedding_run_progress,
 )
 from signalforge.vector_store import (
-    DEFAULT_COLLECTION,
-    DEFAULT_EMBEDDING_MODEL,
     create_qdrant_client,
     index_chunks,
     index_document_chunks,
@@ -136,11 +135,12 @@ def main() -> None:
 
 
 def parse_args() -> argparse.Namespace:
+    config = RuntimeConfig.from_environment()
     parser = argparse.ArgumentParser(description="Embed SQLite chunks and index them in Qdrant.")
-    parser.add_argument("--db-path", default="data/signalforge.sqlite3")
-    parser.add_argument("--qdrant-path", default="data/qdrant")
-    parser.add_argument("--collection", default=DEFAULT_COLLECTION)
-    parser.add_argument("--model", default=DEFAULT_EMBEDDING_MODEL)
+    parser.add_argument("--db-path", default=config.database_target)
+    parser.add_argument("--qdrant-path", default=config.qdrant_target)
+    parser.add_argument("--collection", default=config.collection)
+    parser.add_argument("--model", default=config.embedding_model)
     parser.add_argument("--batch-size", type=int, default=16)
     return parser.parse_args()
 

@@ -1,13 +1,11 @@
 from dataclasses import dataclass
-from pathlib import Path
 
 from signalforge.answer_generator import (
-    DEFAULT_ANSWER_MODEL,
     create_answer_generator_from_environment,
     format_source_label,
 )
+from signalforge.config import RuntimeConfig, target_exists
 from signalforge.query_planner import (
-    DEFAULT_PLANNER_MODEL,
     PlannerContext,
     SearchPlan,
     build_planner_context,
@@ -20,8 +18,6 @@ from signalforge.storage import (
     load_planner_metadata,
 )
 from signalforge.vector_store import (
-    DEFAULT_COLLECTION,
-    DEFAULT_EMBEDDING_MODEL,
     SearchResult,
     create_qdrant_client,
     retrieve_chunks,
@@ -64,16 +60,24 @@ class QueryResponse:
 def answer_question(
     question: str,
     *,
-    db_path: str = "data/signalforge.sqlite3",
-    qdrant_path: str = "data/qdrant",
-    collection: str = DEFAULT_COLLECTION,
-    embedding_model: str = DEFAULT_EMBEDDING_MODEL,
-    planner_model: str = DEFAULT_PLANNER_MODEL,
-    answer_model: str = DEFAULT_ANSWER_MODEL,
+    db_path: str | None = None,
+    qdrant_path: str | None = None,
+    collection: str | None = None,
+    embedding_model: str | None = None,
+    planner_model: str | None = None,
+    answer_model: str | None = None,
 ) -> QueryResponse:
-    if not Path(db_path).exists():
+    config = RuntimeConfig.from_environment()
+    db_path = db_path or config.database_target
+    qdrant_path = qdrant_path or config.qdrant_target
+    collection = collection or config.collection
+    embedding_model = embedding_model or config.embedding_model
+    planner_model = planner_model or config.planner_model
+    answer_model = answer_model or config.answer_model
+
+    if not target_exists(db_path):
         raise FileNotFoundError(f"SignalForge database not found at {db_path}")
-    if not Path(qdrant_path).exists():
+    if not target_exists(qdrant_path):
         raise FileNotFoundError(f"SignalForge Qdrant index not found at {qdrant_path}")
 
     with connect_database(db_path) as connection:

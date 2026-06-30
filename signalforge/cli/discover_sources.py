@@ -1,6 +1,7 @@
 import argparse
 import sys
 
+from signalforge.config import RuntimeConfig
 from signalforge.source_discovery import discover_sources_for_ticker
 from signalforge.storage import connect_database, initialize_database
 
@@ -43,6 +44,7 @@ def main() -> None:
 
 
 def parse_args() -> argparse.Namespace:
+    config = RuntimeConfig.from_environment()
     parser = argparse.ArgumentParser(
         description="Discover candidate company source pages and feeds.",
     )
@@ -51,7 +53,7 @@ def parse_args() -> argparse.Namespace:
         "--website-domain",
         help="Official company website domain, for example nvidia.com. Stored on the company row.",
     )
-    parser.add_argument("--db-path", default="data/signalforge.sqlite3")
+    parser.add_argument("--db-path", default=config.database_target)
     parser.add_argument(
         "--dry-run",
         action="store_true",

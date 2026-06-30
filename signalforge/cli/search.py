@@ -1,9 +1,8 @@
 import argparse
 
+from signalforge.config import RuntimeConfig
 from signalforge.storage import connect_database, get_ready_accession_numbers, initialize_database
 from signalforge.vector_store import (
-    DEFAULT_COLLECTION,
-    DEFAULT_EMBEDDING_MODEL,
     create_qdrant_client,
     semantic_search,
 )
@@ -53,12 +52,13 @@ def main() -> None:
 
 
 def parse_args() -> argparse.Namespace:
+    config = RuntimeConfig.from_environment()
     parser = argparse.ArgumentParser(description="Run semantic search over SEC filing chunks.")
     parser.add_argument("query")
-    parser.add_argument("--db-path", default="data/signalforge.sqlite3")
-    parser.add_argument("--qdrant-path", default="data/qdrant")
-    parser.add_argument("--collection", default=DEFAULT_COLLECTION)
-    parser.add_argument("--model", default=DEFAULT_EMBEDDING_MODEL)
+    parser.add_argument("--db-path", default=config.database_target)
+    parser.add_argument("--qdrant-path", default=config.qdrant_target)
+    parser.add_argument("--collection", default=config.collection)
+    parser.add_argument("--model", default=config.embedding_model)
     parser.add_argument("--ticker")
     parser.add_argument("--section")
     parser.add_argument("--limit", type=int, default=5)

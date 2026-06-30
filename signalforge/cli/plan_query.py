@@ -3,8 +3,8 @@ import json
 
 from dotenv import load_dotenv
 
+from signalforge.config import RuntimeConfig
 from signalforge.query_planner import (
-    DEFAULT_PLANNER_MODEL,
     build_planner_context,
     create_query_planner_from_environment,
 )
@@ -31,12 +31,13 @@ def main() -> None:
 
 
 def parse_args() -> argparse.Namespace:
+    config = RuntimeConfig.from_environment()
     parser = argparse.ArgumentParser(
         description="Create a validated SEC retrieval plan with DeepSeek."
     )
     parser.add_argument("question")
-    parser.add_argument("--db-path", default="data/signalforge.sqlite3")
-    parser.add_argument("--model", default=DEFAULT_PLANNER_MODEL)
+    parser.add_argument("--db-path", default=config.database_target)
+    parser.add_argument("--model", default=config.planner_model)
     return parser.parse_args()
 
 

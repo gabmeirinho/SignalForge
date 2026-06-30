@@ -3,6 +3,7 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 from signalforge.sections import TextChunk
 
@@ -86,11 +87,31 @@ class GenericDocumentChunk:
 
 
 def connect_database(path: str | Path) -> sqlite3.Connection:
-    db_path = Path(path)
+    db_path = _sqlite_path_from_target(path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(db_path)
     connection.row_factory = sqlite3.Row
     return connection
+
+
+def _sqlite_path_from_target(target: str | Path) -> Path:
+    target_text = str(target)
+    parsed = urlparse(target_text)
+
+    if parsed.scheme == "":
+        return Path(target_text)
+    if parsed.scheme == "file":
+        return Path(unquote(parsed.path))
+
+    if parsed.scheme == "sqlite":
+        if parsed.netloc and parsed.netloc != "localhost":
+            raise ValueError(f"Unsupported SQLite database URL host: {parsed.netloc}")
+        return Path(unquote(parsed.path))
+
+    raise NotImplementedError(
+        "SIGNALFORGE_DATABASE_URL is configured for a non-SQLite database, "
+        "but Postgres access is introduced in a later migration phase."
+    )
 
 
 def initialize_database(connection: sqlite3.Connection) -> None:

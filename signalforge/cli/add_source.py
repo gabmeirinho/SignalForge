@@ -1,5 +1,6 @@
 import argparse
 
+from signalforge.config import RuntimeConfig
 from signalforge.storage import (
     SOURCE_OWNERSHIPS,
     SOURCE_TRUST_LEVELS,
@@ -46,6 +47,7 @@ def main() -> None:
 
 
 def parse_args() -> argparse.Namespace:
+    config = RuntimeConfig.from_environment()
     parser = argparse.ArgumentParser(description="Manually register a source fallback.")
     parser.add_argument("--name", required=True)
     parser.add_argument("--url", required=True)
@@ -58,7 +60,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Register the source but leave it disabled.",
     )
-    parser.add_argument("--db-path", default="data/signalforge.sqlite3")
+    parser.add_argument("--db-path", default=config.database_target)
     return parser.parse_args()
 
 

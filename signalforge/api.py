@@ -1,14 +1,11 @@
 from collections import defaultdict
-from dataclasses import dataclass
-from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
-from signalforge.answer_generator import DEFAULT_ANSWER_MODEL
-from signalforge.query_planner import DEFAULT_PLANNER_MODEL
+from signalforge.config import RuntimeConfig, target_exists
 from signalforge.rag_service import QueryResponse, answer_question
 from signalforge.storage import (
     connect_database,
@@ -17,7 +14,6 @@ from signalforge.storage import (
     load_index_metadata,
     load_index_section_counts,
 )
-from signalforge.vector_store import DEFAULT_COLLECTION, DEFAULT_EMBEDDING_MODEL
 
 
 load_dotenv()
@@ -30,29 +26,6 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
-
-
-@dataclass(frozen=True)
-class ApiConfig:
-    db_path: str = "data/signalforge.sqlite3"
-    qdrant_path: str = "data/qdrant"
-    collection: str = DEFAULT_COLLECTION
-    embedding_model: str = DEFAULT_EMBEDDING_MODEL
-    planner_model: str = DEFAULT_PLANNER_MODEL
-    answer_model: str = DEFAULT_ANSWER_MODEL
-
-    @classmethod
-    def from_environment(cls) -> "ApiConfig":
-        import os
-
-        return cls(
-            db_path=os.getenv("SIGNALFORGE_DB_PATH", cls.db_path),
-            qdrant_path=os.getenv("SIGNALFORGE_QDRANT_PATH", cls.qdrant_path),
-            collection=os.getenv("SIGNALFORGE_COLLECTION", cls.collection),
-            embedding_model=os.getenv("SIGNALFORGE_EMBEDDING_MODEL", cls.embedding_model),
-            planner_model=os.getenv("SIGNALFORGE_PLANNER_MODEL", cls.planner_model),
-            answer_model=os.getenv("SIGNALFORGE_ANSWER_MODEL", cls.answer_model),
-        )
 
 
 class HealthResponse(BaseModel):
@@ -161,20 +134,20 @@ class QueryApiResponse(BaseModel):
 
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
-    config = ApiConfig.from_environment()
+    config = RuntimeConfig.from_environment()
     return HealthResponse(
         status="ok",
-        database=Path(config.db_path).exists(),
-        qdrant_path=Path(config.qdrant_path).exists(),
+        database=target_exists(config.database_target),
+        qdrant_path=target_exists(config.qdrant_target),
     )
 
 
 @app.get("/api/index", response_model=IndexResponse)
 def index() -> IndexResponse:
-    config = ApiConfig.from_environment()
+    config = RuntimeConfig.from_environment()
     ensure_local_index(config)
 
-    with connect_database(config.db_path) as connection:
+    with connect_database(config.database_target) as connection:
         initialize_database(connection)
         filing_rows = load_index_metadata(
             connection,
@@ -270,13 +243,13 @@ def index() -> IndexResponse:
 
 @app.post("/api/query", response_model=QueryApiResponse)
 def query(request: QueryRequest) -> QueryApiResponse:
-    config = ApiConfig.from_environment()
+    config = RuntimeConfig.from_environment()
 
     try:
         response = answer_question(
             request.question,
-            db_path=config.db_path,
-            qdrant_path=config.qdrant_path,
+            db_path=config.database_target,
+            qdrant_path=config.qdrant_target,
             collection=config.collection,
             embedding_model=config.embedding_model,
             planner_model=config.planner_model,
@@ -294,16 +267,16 @@ def query(request: QueryRequest) -> QueryApiResponse:
     )
 
 
-def ensure_local_index(config: ApiConfig) -> None:
-    if not Path(config.db_path).exists():
+def ensure_local_index(config: RuntimeConfig) -> None:
+    if not target_exists(config.database_target):
         raise HTTPException(
             status_code=503,
-            detail=f"SignalForge database not found at {config.db_path}",
+            detail=f"SignalForge database not found at {config.database_target}",
         )
-    if not Path(config.qdrant_path).exists():
+    if not target_exists(config.qdrant_target):
         raise HTTPException(
             status_code=503,
-            detail=f"SignalForge Qdrant index not found at {config.qdrant_path}",
+            detail=f"SignalForge Qdrant index not found at {config.qdrant_target}",
         )
 
 
