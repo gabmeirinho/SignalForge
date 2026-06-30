@@ -225,6 +225,38 @@ docker compose logs -f api
 docker compose logs -f worker
 ```
 
+## SQLite To Postgres Migration
+
+Move an existing local SQLite database into Postgres with a dry run first:
+
+```bash
+uv run python -m signalforge.cli.migrate_sqlite_to_postgres \
+  --sqlite-path data/signalforge.sqlite3 \
+  --postgres-url postgresql+psycopg://signalforge:signalforge@localhost:15432/signalforge
+```
+
+If the dry run reports the expected row counts, run the migration:
+
+```bash
+uv run python -m signalforge.cli.migrate_sqlite_to_postgres \
+  --sqlite-path data/signalforge.sqlite3 \
+  --postgres-url postgresql+psycopg://signalforge:signalforge@localhost:15432/signalforge \
+  --execute
+```
+
+The migration preserves IDs and timestamps, copies document metadata into Postgres
+JSONB, validates row counts after import, and resets Postgres sequences. The
+target database must be empty unless you pass `--replace`, which deletes existing
+target rows before importing:
+
+```bash
+uv run python -m signalforge.cli.migrate_sqlite_to_postgres \
+  --sqlite-path data/signalforge.sqlite3 \
+  --postgres-url postgresql+psycopg://signalforge:signalforge@localhost:15432/signalforge \
+  --execute \
+  --replace
+```
+
 ## Useful Commands
 
 ```bash
