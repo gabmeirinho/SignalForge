@@ -7,6 +7,7 @@ from types import TracebackType
 from typing import Any, Iterable
 from urllib.parse import unquote, urlparse
 
+from psycopg.types.json import Jsonb
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Connection, Engine
 
@@ -565,12 +566,16 @@ def list_sources(
             s.*,
             c.ticker,
             c.name AS company_name,
-            COUNT(DISTINCT d.id) AS document_count,
+            COALESCE(document_counts.document_count, 0) AS document_count,
             latest_run.status AS last_ingestion_status,
             latest_run.completed_at AS last_ingestion_completed_at
         FROM sources AS s
         LEFT JOIN companies AS c ON c.id = s.company_id
-        LEFT JOIN documents AS d ON d.source_id = s.id
+        LEFT JOIN (
+            SELECT source_id, COUNT(*) AS document_count
+            FROM documents
+            GROUP BY source_id
+        ) AS document_counts ON document_counts.source_id = s.id
         LEFT JOIN source_ingestion_runs AS latest_run
           ON latest_run.id = (
               SELECT sir.id
@@ -596,7 +601,6 @@ def list_sources(
         parameters.append(enabled)
 
     query += """
-        GROUP BY s.id
         ORDER BY
             c.ticker IS NULL,
             c.ticker,
@@ -657,11 +661,11 @@ def reject_source(connection: sqlite3.Connection, source_id: int) -> sqlite3.Row
 def upsert_document(connection: sqlite3.Connection, document: DocumentRecord) -> int:
     _validate_document(document)
     fetched_at = document.fetched_at or _utc_now()
-    metadata_value = (
-        json.dumps(document.metadata or {}, sort_keys=True)
-        if connection.dialect_name == "sqlite"
-        else document.metadata or {}
-    )
+    metadata = document.metadata or {}
+    metadata_value = json.dumps(metadata, sort_keys=True)
+    if connection.dialect_name == "postgresql":
+        metadata_value = Jsonb(metadata)
+
     connection.execute(
         """
         INSERT INTO documents (

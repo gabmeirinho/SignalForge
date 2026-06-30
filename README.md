@@ -182,6 +182,49 @@ docker run --rm -p 8080:80 \
 
 Open `http://localhost:8080`.
 
+## Docker Compose
+
+Run the full local stack:
+
+```bash
+docker compose up --build
+```
+
+This starts:
+
+- Postgres on `localhost:15432`
+- Qdrant on `localhost:6333`
+- API on `http://localhost:8000`
+- Frontend on `http://localhost:8080`
+- Worker background ingestion/vectorization loop
+
+The stack uses named Docker volumes for Postgres data, Qdrant data, processed
+article text, and raw SEC filing downloads. Stop the stack while keeping data:
+
+```bash
+docker compose down
+```
+
+Stop the stack and delete persisted local Docker data:
+
+```bash
+docker compose down -v
+```
+
+Copy `.env.example` to `.env` if you want to override ports, credentials, models,
+worker settings, or optional DeepSeek/SEC values. Docker Compose reads `.env`
+automatically.
+
+Useful checks:
+
+```bash
+docker compose ps
+curl http://localhost:8000/health
+curl http://localhost:8000/api/index
+docker compose logs -f api
+docker compose logs -f worker
+```
+
 ## Useful Commands
 
 ```bash
