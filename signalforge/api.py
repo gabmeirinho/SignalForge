@@ -34,6 +34,14 @@ def configured_cors_origins() -> list[str]:
     return [origin for raw_origin in value.split(",") if (origin := raw_origin.strip())]
 
 
+def format_optional_datetime(value) -> str | None:
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
 app = FastAPI(title="SignalForge API")
 app.add_middleware(
     CORSMiddleware,
@@ -229,7 +237,7 @@ def index() -> IndexResponse:
             confidence_score=row["confidence_score"],
             document_count=int(row["document_count"]),
             last_ingestion_status=row["last_ingestion_status"],
-            last_ingestion_completed_at=row["last_ingestion_completed_at"],
+            last_ingestion_completed_at=format_optional_datetime(row["last_ingestion_completed_at"]),
         )
         for row in source_rows
     ]
