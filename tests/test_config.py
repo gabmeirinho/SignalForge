@@ -1,9 +1,5 @@
-import sqlite3
-
-import pytest
-
 from signalforge.config import RuntimeConfig
-from signalforge.storage import connect_database
+from signalforge.storage import StorageConnection, connect_database
 
 
 def test_runtime_config_prefers_urls_over_local_paths(monkeypatch):
@@ -42,11 +38,17 @@ def test_connect_database_accepts_sqlite_url(tmp_path):
     db_path = tmp_path / "signalforge.sqlite3"
 
     with connect_database(f"sqlite:///{db_path}") as connection:
-        assert isinstance(connection, sqlite3.Connection)
+        assert isinstance(connection, StorageConnection)
+        assert connection.dialect_name == "sqlite"
 
     assert db_path.exists()
 
 
-def test_connect_database_rejects_postgres_url_until_storage_migration():
-    with pytest.raises(NotImplementedError, match="Postgres access"):
-        connect_database("postgresql://localhost/signalforge")
+def test_connect_database_accepts_postgres_url():
+    connection = connect_database("postgresql://localhost/signalforge")
+
+    try:
+        assert isinstance(connection, StorageConnection)
+        assert connection.dialect_name == "postgresql"
+    finally:
+        connection.close()

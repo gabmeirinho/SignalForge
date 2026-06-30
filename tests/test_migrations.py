@@ -8,6 +8,7 @@ from signalforge.storage import (
     DocumentRecord,
     GenericDocumentChunk,
     SourceRecord,
+    StorageConnection,
     connect_database,
     initialize_database,
     list_sources,
@@ -114,3 +115,44 @@ def test_initialize_database_uses_migrations_for_new_file_database(tmp_path):
         version = connection.execute("SELECT version_num FROM alembic_version").fetchone()
 
     assert version["version_num"] == "0001_initial_schema"
+
+
+def test_sqlalchemy_connection_path_supports_existing_storage_functions(tmp_path):
+    db_path = tmp_path / "signalforge.sqlite3"
+    engine = create_engine(sqlalchemy_database_url(str(db_path)), future=True)
+
+    with StorageConnection(target=str(db_path), sqlalchemy_engine=engine) as connection:
+        initialize_database(connection)
+        company_id = upsert_company(connection, CompanyRecord(ticker="AMD", name="AMD"))
+        source_id = upsert_source(
+            connection,
+            SourceRecord(
+                company_id=company_id,
+                name="AMD Newsroom",
+                url="https://example.com/amd",
+                source_type="newsroom",
+                discovery_status="approved",
+            ),
+        )
+        document_id = upsert_document(
+            connection,
+            DocumentRecord(
+                source_id=source_id,
+                url="https://example.com/amd/article",
+                title="AMD Update",
+                content_hash="b" * 64,
+                document_type="article",
+                metadata={"category": "news"},
+            ),
+        )
+        replace_document_chunks(
+            connection,
+            document_id,
+            [GenericDocumentChunk(chunk_index=0, text="AMD product update")],
+        )
+
+        sources = list_sources(connection, enabled=True)
+
+    assert len(sources) == 1
+    assert sources[0]["ticker"] == "AMD"
+    assert sources[0]["document_count"] == 1

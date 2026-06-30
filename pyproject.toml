@@ -42,3 +42,6 @@ target-version = "py311"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "postgres: requires SIGNALFORGE_POSTGRES_TEST_DATABASE_URL and a disposable Postgres database",
+]

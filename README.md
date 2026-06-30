@@ -199,6 +199,11 @@ The API supports these environment overrides:
 
 `SIGNALFORGE_DATABASE_URL` takes precedence over `SIGNALFORGE_DB_PATH`.
 `SIGNALFORGE_QDRANT_URL` takes precedence over `SIGNALFORGE_QDRANT_PATH`.
+For Postgres, use a URL such as:
+
+```bash
+SIGNALFORGE_DATABASE_URL=postgresql+psycopg://user:password@localhost:5432/signalforge
+```
 
 Set a custom frontend API URL with:
 
@@ -213,6 +218,14 @@ uv run pytest
 
 cd frontend
 npm test
+```
+
+Run the optional Postgres persistence profile against a disposable database
+whose name contains `test`:
+
+```bash
+SIGNALFORGE_POSTGRES_TEST_DATABASE_URL=postgresql+psycopg://user:password@localhost:5432/signalforge_test \
+  uv run pytest -m postgres
 ```
 
 ## Notes
