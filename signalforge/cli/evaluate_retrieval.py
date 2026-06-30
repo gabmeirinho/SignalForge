@@ -3,6 +3,7 @@ import json
 import textwrap
 from pathlib import Path
 
+from signalforge.answer_generator import format_source_label
 from signalforge.storage import connect_database, get_ready_accession_numbers, initialize_database
 from signalforge.vector_store import (
     DEFAULT_COLLECTION,
@@ -260,12 +261,14 @@ def print_retrieved_chunks(results, *, preview_chars: int, show_full_text: bool)
         if not show_full_text and len(text) > preview_chars:
             text = f"{text[:preview_chars].rstrip()}..."
 
-        print(
-            f"{index}. score={result.score:.4f} "
-            f"{payload.get('ticker')} {payload.get('filing_date')} "
-            f"Item {payload.get('section_id')} chunk {payload.get('chunk_index')} "
-            f"accession={payload.get('accession_number')}"
-        )
+        label = format_source_label(index, payload)
+        if payload.get("chunk_source") == "document":
+            print(f"{index}. score={result.score:.4f} {label} url={payload.get('url') or '-'}")
+        else:
+            print(
+                f"{index}. score={result.score:.4f} {label} "
+                f"accession={payload.get('accession_number') or '-'}"
+            )
         print(textwrap.indent(text, "   "))
 
 
