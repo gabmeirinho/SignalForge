@@ -381,6 +381,110 @@ def upsert_source(connection: sqlite3.Connection, source: SourceRecord) -> int:
     return int(row["id"])
 
 
+def list_sources(
+    connection: sqlite3.Connection,
+    *,
+    ticker: str | None = None,
+    discovery_status: str | None = None,
+    enabled: bool | None = None,
+) -> list[sqlite3.Row]:
+    if discovery_status is not None:
+        _validate_choice("discovery_status", discovery_status, SOURCE_DISCOVERY_STATUSES)
+
+    query = """
+        SELECT
+            s.*,
+            c.ticker,
+            c.name AS company_name,
+            COUNT(DISTINCT d.id) AS document_count,
+            latest_run.status AS last_ingestion_status,
+            latest_run.completed_at AS last_ingestion_completed_at
+        FROM sources AS s
+        LEFT JOIN companies AS c ON c.id = s.company_id
+        LEFT JOIN documents AS d ON d.source_id = s.id
+        LEFT JOIN source_ingestion_runs AS latest_run
+          ON latest_run.id = (
+              SELECT sir.id
+              FROM source_ingestion_runs AS sir
+              WHERE sir.source_id = s.id
+              ORDER BY COALESCE(sir.completed_at, sir.started_at) DESC, sir.id DESC
+              LIMIT 1
+          )
+        WHERE 1 = 1
+    """
+    parameters: list[object] = []
+
+    if ticker is not None:
+        query += " AND c.ticker = ?"
+        parameters.append(ticker.upper())
+
+    if discovery_status is not None:
+        query += " AND s.discovery_status = ?"
+        parameters.append(discovery_status)
+
+    if enabled is not None:
+        query += " AND s.enabled = ?"
+        parameters.append(int(enabled))
+
+    query += """
+        GROUP BY s.id
+        ORDER BY
+            c.ticker IS NULL,
+            c.ticker,
+            s.discovery_status,
+            s.confidence_score DESC,
+            s.name
+    """
+    return connection.execute(query, parameters).fetchall()
+
+
+def load_source(connection: sqlite3.Connection, source_id: int) -> sqlite3.Row | None:
+    return connection.execute(
+        """
+        SELECT
+            s.*,
+            c.ticker,
+            c.name AS company_name
+        FROM sources AS s
+        LEFT JOIN companies AS c ON c.id = s.company_id
+        WHERE s.id = ?
+        """,
+        (source_id,),
+    ).fetchone()
+
+
+def approve_source(connection: sqlite3.Connection, source_id: int) -> sqlite3.Row | None:
+    connection.execute(
+        """
+        UPDATE sources
+        SET
+            discovery_status = 'approved',
+            enabled = 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        """,
+        (source_id,),
+    )
+    connection.commit()
+    return load_source(connection, source_id)
+
+
+def reject_source(connection: sqlite3.Connection, source_id: int) -> sqlite3.Row | None:
+    connection.execute(
+        """
+        UPDATE sources
+        SET
+            discovery_status = 'rejected',
+            enabled = 0,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        """,
+        (source_id,),
+    )
+    connection.commit()
+    return load_source(connection, source_id)
+
+
 def upsert_document(connection: sqlite3.Connection, document: DocumentRecord) -> int:
     _validate_document(document)
     fetched_at = document.fetched_at or _utc_now()
