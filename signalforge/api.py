@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
 from signalforge.config import RuntimeConfig, target_exists
+from signalforge.index_health import CorpusIndexHealth, IndexHealth, check_index_health
 from signalforge.rag_service import QueryResponse, answer_question
 from signalforge.storage import (
     connect_database,
@@ -15,6 +16,7 @@ from signalforge.storage import (
     load_index_metadata,
     load_index_section_counts,
 )
+from signalforge.vector_store import create_qdrant_client
 
 
 load_dotenv()
@@ -110,6 +112,29 @@ class IndexResponse(BaseModel):
     summary: IndexSummary
     embedding_model: str
     collection: str
+
+
+class CorpusIndexHealthResponse(BaseModel):
+    name: str
+    postgres_expected_points: int
+    postgres_ready_points: int
+    postgres_embedding_records: int
+    qdrant_points: int
+    missing_qdrant_points: int
+    extra_qdrant_points: int
+    is_complete_in_postgres: bool
+    is_consistent_with_qdrant: bool
+
+
+class IndexHealthResponse(BaseModel):
+    status: str
+    collection: str
+    collection_exists: bool
+    embedding_model: str
+    total_postgres_expected_points: int
+    total_qdrant_points: int
+    sec: CorpusIndexHealthResponse
+    documents: CorpusIndexHealthResponse
 
 
 class QueryRequest(BaseModel):
@@ -265,6 +290,27 @@ def index() -> IndexResponse:
     )
 
 
+@app.get("/api/index/health", response_model=IndexHealthResponse)
+def index_health() -> IndexHealthResponse:
+    config = RuntimeConfig.from_environment()
+    ensure_local_index(config)
+
+    with connect_database(config.database_target) as connection:
+        initialize_database(connection)
+        client = create_qdrant_client(config.qdrant_target)
+        try:
+            health = check_index_health(
+                connection,
+                client,
+                collection=config.collection,
+                embedding_model=config.embedding_model,
+            )
+        finally:
+            client.close()
+
+    return index_health_response(health)
+
+
 @app.post("/api/query", response_model=QueryApiResponse)
 def query(request: QueryRequest) -> QueryApiResponse:
     config = RuntimeConfig.from_environment()
@@ -340,4 +386,31 @@ def query_response_to_api(
             )
             for source in response.sources
         ],
+    )
+
+
+def corpus_index_health_response(health: CorpusIndexHealth) -> CorpusIndexHealthResponse:
+    return CorpusIndexHealthResponse(
+        name=health.name,
+        postgres_expected_points=health.postgres_expected_points,
+        postgres_ready_points=health.postgres_ready_points,
+        postgres_embedding_records=health.postgres_embedding_records,
+        qdrant_points=health.qdrant_points,
+        missing_qdrant_points=health.missing_qdrant_points,
+        extra_qdrant_points=health.extra_qdrant_points,
+        is_complete_in_postgres=health.is_complete_in_postgres,
+        is_consistent_with_qdrant=health.is_consistent_with_qdrant,
+    )
+
+
+def index_health_response(health: IndexHealth) -> IndexHealthResponse:
+    return IndexHealthResponse(
+        status=health.status,
+        collection=health.collection,
+        collection_exists=health.collection_exists,
+        embedding_model=health.embedding_model,
+        total_postgres_expected_points=health.total_postgres_expected_points,
+        total_qdrant_points=health.total_qdrant_points,
+        sec=corpus_index_health_response(health.sec),
+        documents=corpus_index_health_response(health.documents),
     )
