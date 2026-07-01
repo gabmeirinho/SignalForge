@@ -424,6 +424,29 @@ def semantic_search(
     ]
 
 
+def count_points_by_payload(
+    client: QdrantClient,
+    *,
+    collection_name: str,
+    payload: dict[str, object],
+    exact: bool = True,
+) -> int:
+    if not client.collection_exists(collection_name):
+        return 0
+
+    conditions = [
+        models.FieldCondition(key=key, match=models.MatchValue(value=value))
+        for key, value in payload.items()
+    ]
+    count_filter = models.Filter(must=conditions) if conditions else None
+    result = client.count(
+        collection_name=collection_name,
+        count_filter=count_filter,
+        exact=exact,
+    )
+    return int(result.count)
+
+
 def retrieve_chunks(
     client: QdrantClient,
     *,

@@ -1198,6 +1198,60 @@ def load_index_section_counts(connection: sqlite3.Connection) -> list[sqlite3.Ro
     ).fetchall()
 
 
+def load_index_health_counts(
+    connection: sqlite3.Connection,
+    *,
+    embedding_model: str,
+    vector_collection: str,
+) -> dict[str, int]:
+    row = connection.execute(
+        """
+        SELECT
+            (SELECT COUNT(*) FROM chunks) AS sec_expected_points,
+            (
+                SELECT COALESCE(SUM(er.expected_point_count), 0)
+                FROM embedding_runs AS er
+                WHERE er.embedding_model = ?
+                  AND er.vector_collection = ?
+                  AND er.status = 'ready'
+            ) AS sec_ready_points,
+            (
+                SELECT COUNT(*)
+                FROM chunk_embeddings AS ce
+                WHERE ce.embedding_model = ?
+                  AND ce.vector_collection = ?
+            ) AS sec_embedding_records,
+            (
+                SELECT COUNT(*)
+                FROM document_chunks AS dc
+                JOIN documents AS d ON d.id = dc.document_id
+                JOIN sources AS s ON s.id = d.source_id
+                WHERE s.enabled = ?
+                  AND s.discovery_status IN ('approved', 'manual')
+            ) AS document_expected_points,
+            (
+                SELECT COUNT(*)
+                FROM document_chunk_embeddings AS dce
+                WHERE dce.embedding_model = ?
+                  AND dce.vector_collection = ?
+            ) AS document_embedding_records
+        """,
+        (
+            embedding_model,
+            vector_collection,
+            embedding_model,
+            vector_collection,
+            True,
+            embedding_model,
+            vector_collection,
+        ),
+    ).fetchone()
+    if row is None:
+        raise RuntimeError("Failed to load index health counts")
+
+    return {key: int(row[key] or 0) for key in row.keys()}
+
+
 def update_embedding_run_progress(
     connection: sqlite3.Connection,
     *,
