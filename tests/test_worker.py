@@ -1,3 +1,4 @@
+from signalforge.index_health import CorpusIndexHealth, IndexHealth
 from signalforge.source_ingestion import SourceIngestionResult
 from signalforge.vectorization import VectorizationResult
 from signalforge.worker import WorkerConfig, run_worker_cycle, run_worker_loop
@@ -108,6 +109,78 @@ def test_run_worker_cycle_can_skip_scheduled_ingestion(monkeypatch, tmp_path):
 
     assert result.ingestion_results == []
     assert result.vectorization_result.indexed_count == 0
+
+
+def test_run_worker_cycle_repairs_degraded_index_before_vectorizing(monkeypatch, tmp_path):
+    calls = []
+
+    def degraded_health(connection, config):
+        return IndexHealth(
+            status="degraded",
+            collection=config.collection,
+            collection_exists=True,
+            embedding_model=config.embedding_model,
+            sec=CorpusIndexHealth(
+                name="sec",
+                postgres_expected_points=2,
+                postgres_ready_points=2,
+                postgres_embedding_records=2,
+                qdrant_points=0,
+            ),
+            documents=CorpusIndexHealth(
+                name="documents",
+                postgres_expected_points=3,
+                postgres_ready_points=3,
+                postgres_embedding_records=3,
+                qdrant_points=3,
+            ),
+        )
+
+    def reset_sec(connection, **kwargs):
+        calls.append(("reset_sec", kwargs))
+
+    def reset_documents(connection, **kwargs):
+        calls.append(("reset_documents", kwargs))
+
+    def vectorize(connection, **kwargs):
+        calls.append(("vectorize", kwargs))
+        return VectorizationResult(indexed_count=2, sec_chunk_count=2, document_chunk_count=0)
+
+    monkeypatch.setattr("signalforge.worker.load_worker_index_health", degraded_health)
+    monkeypatch.setattr("signalforge.worker.reset_sec_index_metadata", reset_sec)
+    monkeypatch.setattr("signalforge.worker.reset_document_index_metadata", reset_documents)
+    monkeypatch.setattr("signalforge.worker.vectorize_pending_chunks", vectorize)
+
+    result = run_worker_cycle(
+        WorkerConfig(
+            database_target=str(tmp_path / "signalforge.sqlite3"),
+            qdrant_target=str(tmp_path / "qdrant"),
+            collection="worker_chunks",
+            embedding_model="worker-model",
+            enable_scheduled_ingestion=False,
+            vectorize_batch_size=7,
+        )
+    )
+
+    assert result.vectorization_result.indexed_count == 2
+    assert calls == [
+        (
+            "reset_sec",
+            {
+                "embedding_model": "worker-model",
+                "vector_collection": "worker_chunks",
+            },
+        ),
+        (
+            "vectorize",
+            {
+                "qdrant_target": str(tmp_path / "qdrant"),
+                "collection": "worker_chunks",
+                "embedding_model": "worker-model",
+                "batch_size": 7,
+            },
+        ),
+    ]
 
 
 def test_worker_loop_continues_after_cycle_failure(monkeypatch):

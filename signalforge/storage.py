@@ -1042,6 +1042,61 @@ def record_chunk_embeddings(
     connection.commit()
 
 
+def reset_sec_index_metadata(
+    connection: sqlite3.Connection,
+    *,
+    embedding_model: str,
+    vector_collection: str,
+) -> None:
+    now = _utc_now()
+    connection.execute(
+        """
+        UPDATE embedding_runs
+        SET
+            status = 'pending',
+            expected_point_count = (
+                SELECT COUNT(*)
+                FROM chunks AS c
+                WHERE c.filing_id = embedding_runs.filing_id
+            ),
+            indexed_point_count = 0,
+            error_message = NULL,
+            started_at = NULL,
+            completed_at = NULL,
+            updated_at = ?
+        WHERE embedding_model = ?
+          AND vector_collection = ?
+        """,
+        (now, embedding_model, vector_collection),
+    )
+    connection.execute(
+        """
+        DELETE FROM chunk_embeddings
+        WHERE embedding_model = ?
+          AND vector_collection = ?
+        """,
+        (embedding_model, vector_collection),
+    )
+    connection.commit()
+
+
+def reset_document_index_metadata(
+    connection: sqlite3.Connection,
+    *,
+    embedding_model: str,
+    vector_collection: str,
+) -> None:
+    connection.execute(
+        """
+        DELETE FROM document_chunk_embeddings
+        WHERE embedding_model = ?
+          AND vector_collection = ?
+        """,
+        (embedding_model, vector_collection),
+    )
+    connection.commit()
+
+
 def set_embedding_run_status(
     connection: sqlite3.Connection,
     *,

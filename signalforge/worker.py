@@ -10,8 +10,15 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from signalforge.config import RuntimeConfig
+from signalforge.index_health import IndexHealth, check_index_health
 from signalforge.source_ingestion import SourceIngestionResult, ingest_approved_sources
-from signalforge.storage import connect_database, initialize_database
+from signalforge.storage import (
+    connect_database,
+    initialize_database,
+    reset_document_index_metadata,
+    reset_sec_index_metadata,
+)
+from signalforge.vector_store import create_qdrant_client
 from signalforge.vectorization import VectorizationResult, vectorize_pending_chunks
 
 
@@ -97,6 +104,8 @@ def run_worker_cycle(config: WorkerConfig) -> WorkerCycleResult:
         else:
             logger.info("scheduled ingestion disabled")
 
+        repair_degraded_index(connection, config)
+
         vectorization_result = vectorize_pending_chunks(
             connection,
             qdrant_target=config.qdrant_target,
@@ -116,6 +125,57 @@ def run_worker_cycle(config: WorkerConfig) -> WorkerCycleResult:
         ingestion_results=ingestion_results,
         vectorization_result=vectorization_result,
     )
+
+
+def repair_degraded_index(connection, config: WorkerConfig) -> IndexHealth:
+    health = load_worker_index_health(connection, config)
+    logger.info(
+        "index health: status=%s sec_pg=%s sec_qdrant=%s documents_pg=%s documents_qdrant=%s",
+        health.status,
+        health.sec.postgres_embedding_records,
+        health.sec.qdrant_points,
+        health.documents.postgres_embedding_records,
+        health.documents.qdrant_points,
+    )
+
+    if health.status != "degraded":
+        return health
+
+    repaired = []
+    if not health.sec.is_consistent_with_qdrant:
+        reset_sec_index_metadata(
+            connection,
+            embedding_model=config.embedding_model,
+            vector_collection=config.collection,
+        )
+        repaired.append("sec")
+
+    if not health.documents.is_consistent_with_qdrant:
+        reset_document_index_metadata(
+            connection,
+            embedding_model=config.embedding_model,
+            vector_collection=config.collection,
+        )
+        repaired.append("documents")
+
+    logger.warning(
+        "degraded index detected; reset metadata for %s before vectorization",
+        ", ".join(repaired),
+    )
+    return health
+
+
+def load_worker_index_health(connection, config: WorkerConfig) -> IndexHealth:
+    client = create_qdrant_client(config.qdrant_target)
+    try:
+        return check_index_health(
+            connection,
+            client,
+            collection=config.collection,
+            embedding_model=config.embedding_model,
+        )
+    finally:
+        client.close()
 
 
 def run_worker_loop(config: WorkerConfig, stop_event: _StopEvent | None = None) -> None:
