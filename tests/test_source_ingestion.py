@@ -6,6 +6,7 @@ from signalforge.source_ingestion import (
     discover_feed_links,
     fetch_article,
     ingest_approved_sources,
+    load_approved_enabled_sources,
     parse_feed_entries,
 )
 from signalforge.storage import (
@@ -85,6 +86,29 @@ def test_discover_feed_links_finds_rss_and_atom_alternates():
         "https://example.com/feed.xml",
         "https://example.com/atom.xml",
     ]
+
+
+def test_load_approved_enabled_sources_binds_enabled_as_boolean():
+    class RecordingConnection:
+        def __init__(self):
+            self.query = None
+            self.parameters = None
+
+        def execute(self, query, parameters):
+            self.query = query
+            self.parameters = parameters
+            return self
+
+        def fetchall(self):
+            return []
+
+    connection = RecordingConnection()
+
+    load_approved_enabled_sources(connection, ticker="nvda")
+
+    assert "s.enabled = ?" in connection.query
+    assert "s.enabled = 1" not in connection.query
+    assert connection.parameters == [True, "NVDA"]
 
 
 def test_fetch_article_falls_back_to_bs4_extraction(monkeypatch):
