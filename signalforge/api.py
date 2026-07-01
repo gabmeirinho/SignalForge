@@ -293,27 +293,21 @@ def index() -> IndexResponse:
 @app.get("/api/index/health", response_model=IndexHealthResponse)
 def index_health() -> IndexHealthResponse:
     config = RuntimeConfig.from_environment()
-    ensure_local_index(config)
-
-    with connect_database(config.database_target) as connection:
-        initialize_database(connection)
-        client = create_qdrant_client(config.qdrant_target)
-        try:
-            health = check_index_health(
-                connection,
-                client,
-                collection=config.collection,
-                embedding_model=config.embedding_model,
-            )
-        finally:
-            client.close()
-
-    return index_health_response(health)
+    return index_health_response(load_current_index_health(config))
 
 
 @app.post("/api/query", response_model=QueryApiResponse)
 def query(request: QueryRequest) -> QueryApiResponse:
     config = RuntimeConfig.from_environment()
+    health = load_current_index_health(config)
+    if health.status == "degraded":
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "message": "Vector index is inconsistent; repair or revectorize before querying.",
+                "health": index_health_response(health).model_dump(),
+            },
+        )
 
     try:
         response = answer_question(
@@ -387,6 +381,23 @@ def query_response_to_api(
             for source in response.sources
         ],
     )
+
+
+def load_current_index_health(config: RuntimeConfig) -> IndexHealth:
+    ensure_local_index(config)
+
+    with connect_database(config.database_target) as connection:
+        initialize_database(connection)
+        client = create_qdrant_client(config.qdrant_target)
+        try:
+            return check_index_health(
+                connection,
+                client,
+                collection=config.collection,
+                embedding_model=config.embedding_model,
+            )
+        finally:
+            client.close()
 
 
 def corpus_index_health_response(health: CorpusIndexHealth) -> CorpusIndexHealthResponse:

@@ -327,6 +327,53 @@ def test_query_validates_and_shapes_response(monkeypatch, tmp_path):
     assert payload["sources"][0]["ticker"] == "NVDA"
 
 
+def test_query_blocks_when_index_health_is_degraded(monkeypatch, tmp_path):
+    db_path = tmp_path / "signalforge.sqlite3"
+    qdrant_path = tmp_path / "qdrant"
+    db_path.touch()
+    qdrant_path.mkdir()
+    monkeypatch.setenv("SIGNALFORGE_DB_PATH", str(db_path))
+    monkeypatch.setenv("SIGNALFORGE_QDRANT_PATH", str(qdrant_path))
+
+    def fail_answer_question(question, **kwargs):
+        raise AssertionError("answer_question should not run for a degraded index")
+
+    monkeypatch.setattr(
+        "signalforge.api.load_current_index_health",
+        lambda config: IndexHealth(
+            status="degraded",
+            collection="test-collection",
+            collection_exists=True,
+            embedding_model="test-model",
+            sec=CorpusIndexHealth(
+                name="sec",
+                postgres_expected_points=2,
+                postgres_ready_points=2,
+                postgres_embedding_records=2,
+                qdrant_points=0,
+            ),
+            documents=CorpusIndexHealth(
+                name="documents",
+                postgres_expected_points=0,
+                postgres_ready_points=0,
+                postgres_embedding_records=0,
+                qdrant_points=0,
+            ),
+        ),
+    )
+    monkeypatch.setattr("signalforge.api.answer_question", fail_answer_question)
+
+    response = TestClient(app).post("/api/query", json={"question": "Where is NVDA from?"})
+
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["detail"]["message"] == (
+        "Vector index is inconsistent; repair or revectorize before querying."
+    )
+    assert payload["detail"]["health"]["status"] == "degraded"
+    assert payload["detail"]["health"]["sec"]["missing_qdrant_points"] == 2
+
+
 def test_query_passes_through_warnings_and_fallback_state(monkeypatch, tmp_path):
     db_path = tmp_path / "signalforge.sqlite3"
     qdrant_path = tmp_path / "qdrant"
