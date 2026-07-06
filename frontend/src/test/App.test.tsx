@@ -1,6 +1,6 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 import { fetchHealth, fetchIndex, submitQuery } from "../api";
 import type { HealthResponse, IndexResponse, QueryResponse } from "../types";
@@ -141,9 +141,15 @@ const queryPayload: QueryResponse = {
 
 describe("App", () => {
   beforeEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
     mockFetchHealth.mockResolvedValue(health);
     mockFetchIndex.mockResolvedValue(indexPayload);
     mockSubmitQuery.mockResolvedValue(queryPayload);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("renders indexed tickers and status after loading metadata", async () => {
@@ -151,13 +157,77 @@ describe("App", () => {
 
     expect(await screen.findByText("NVDA")).toBeInTheDocument();
     expect(screen.getByText("AMD")).toBeInTheDocument();
-    expect(screen.getByText("local index ready")).toBeInTheDocument();
+    expect(screen.getByText("API online")).toBeInTheDocument();
+    expect(screen.getByText("Database ready")).toBeInTheDocument();
+    expect(screen.getByText("Vector store ready")).toBeInTheDocument();
     expect(screen.getByText("2 tickers")).toBeInTheDocument();
     expect(screen.getByText("indexed filings")).toBeInTheDocument();
     expect(screen.getByText("approved sources")).toBeInTheDocument();
     expect(screen.getByText("candidate sources")).toBeInTheDocument();
     expect(screen.getByText("NVIDIA Blog")).toBeInTheDocument();
     expect(screen.getByText("completed 2026-06-30")).toBeInTheDocument();
+  });
+
+  it("renders unavailable database status from health", async () => {
+    mockFetchHealth.mockResolvedValue({
+      status: "ok",
+      database: false,
+      qdrant_path: true,
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText("API online")).toBeInTheDocument();
+    expect(screen.getByText("Database unavailable")).toBeInTheDocument();
+    expect(screen.getByText("Vector store ready")).toBeInTheDocument();
+  });
+
+  it("renders unavailable vector store status from health", async () => {
+    mockFetchHealth.mockResolvedValue({
+      status: "ok",
+      database: true,
+      qdrant_path: false,
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText("API online")).toBeInTheDocument();
+    expect(screen.getByText("Database ready")).toBeInTheDocument();
+    expect(screen.getByText("Vector store unavailable")).toBeInTheDocument();
+  });
+
+  it("renders health failures without blocking index metadata", async () => {
+    mockFetchHealth.mockRejectedValue(new Error("Network error"));
+    mockFetchIndex.mockResolvedValue(indexPayload);
+
+    render(<App />);
+
+    expect(await screen.findByText("API unreachable")).toBeInTheDocument();
+    expect(screen.getByText("Database unknown")).toBeInTheDocument();
+    expect(screen.getByText("Vector store unknown")).toBeInTheDocument();
+    expect(await screen.findByText("NVDA")).toBeInTheDocument();
+    expect(screen.getByText("2 tickers")).toBeInTheDocument();
+  });
+
+  it("polls health without polling index metadata", async () => {
+    vi.useFakeTimers();
+    mockFetchHealth.mockResolvedValue(health);
+
+    render(<App />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mockFetchHealth).toHaveBeenCalledTimes(1);
+    expect(mockFetchIndex).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+
+    expect(mockFetchHealth).toHaveBeenCalledTimes(2);
+    expect(mockFetchIndex).toHaveBeenCalledTimes(1);
   });
 
   it("inserts a ticker into the query composer without submitting", async () => {

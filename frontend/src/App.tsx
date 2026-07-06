@@ -11,6 +11,9 @@ import type { HealthResponse, IndexResponse, QueryResponse } from "./types";
 export default function App() {
   const [question, setQuestion] = useState("");
   const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [healthError, setHealthError] = useState<string | null>(null);
+  const [isHealthLoading, setIsHealthLoading] = useState(true);
+  const [healthLastCheckedAt, setHealthLastCheckedAt] = useState<Date | null>(null);
   const [index, setIndex] = useState<IndexResponse | null>(null);
   const [indexError, setIndexError] = useState<string | null>(null);
   const [isIndexLoading, setIsIndexLoading] = useState(true);
@@ -20,15 +23,55 @@ export default function App() {
 
   useEffect(() => {
     let isMounted = true;
+    let isHealthRequestPending = false;
 
-    async function loadInitialData() {
-      setIsIndexLoading(true);
+    async function loadHealth() {
+      if (isHealthRequestPending) {
+        return;
+      }
+
+      isHealthRequestPending = true;
       try {
-        const [healthPayload, indexPayload] = await Promise.all([fetchHealth(), fetchIndex()]);
+        const healthPayload = await fetchHealth();
         if (!isMounted) {
           return;
         }
         setHealth(healthPayload);
+        setHealthError(null);
+        setHealthLastCheckedAt(new Date());
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+        setHealthError(error instanceof Error ? error.message : "Unable to load API health");
+        setHealthLastCheckedAt(new Date());
+      } finally {
+        isHealthRequestPending = false;
+        if (isMounted) {
+          setIsHealthLoading(false);
+        }
+      }
+    }
+
+    loadHealth();
+    const healthIntervalId = window.setInterval(loadHealth, 60_000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(healthIntervalId);
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadIndex() {
+      setIsIndexLoading(true);
+      try {
+        const indexPayload = await fetchIndex();
+        if (!isMounted) {
+          return;
+        }
         setIndex(indexPayload);
         setIndexError(null);
       } catch (error) {
@@ -43,7 +86,7 @@ export default function App() {
       }
     }
 
-    loadInitialData();
+    loadIndex();
     return () => {
       isMounted = false;
     };
@@ -106,7 +149,13 @@ export default function App() {
           </div>
         </div>
       </main>
-      <StatusBar health={health} indexCount={index?.tickers.length ?? 0} />
+      <StatusBar
+        health={health}
+        healthError={healthError}
+        isHealthLoading={isHealthLoading}
+        lastCheckedAt={healthLastCheckedAt}
+        indexCount={index?.tickers.length ?? 0}
+      />
     </div>
   );
 }
