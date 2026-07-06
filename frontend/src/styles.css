@@ -633,6 +633,7 @@ button:focus-visible {
 
 .status-bar {
   grid-column: 2;
+  flex-wrap: wrap;
   justify-content: flex-start;
   gap: 18px;
   min-width: 0;
@@ -655,6 +656,14 @@ button:focus-visible {
 
 .status-bad {
   color: #b42318;
+}
+
+.status-muted {
+  color: #637083;
+}
+
+.status-checking {
+  color: #4f5d6e;
 }
 
 @media (max-width: 1100px) {
