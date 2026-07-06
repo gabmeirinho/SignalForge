@@ -1,6 +1,7 @@
 import argparse
 import sys
 
+from signalforge.config import RuntimeConfig
 from signalforge.storage import (
     SOURCE_DISCOVERY_STATUSES,
     connect_database,
@@ -67,8 +68,9 @@ def parse_enabled_filter(value: str | None) -> bool | None:
 
 
 def parse_args() -> argparse.Namespace:
+    config = RuntimeConfig.from_environment()
     parser = argparse.ArgumentParser(description="List discovered and registered sources.")
-    parser.add_argument("--db-path", default="data/signalforge.sqlite3")
+    parser.add_argument("--db-path", default=config.database_target)
     parser.add_argument("--ticker", help="Only show sources for this ticker.")
     parser.add_argument(
         "--status",

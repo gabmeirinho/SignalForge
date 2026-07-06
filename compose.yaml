@@ -1,0 +1,117 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-signalforge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-signalforge}
+      POSTGRES_DB: ${POSTGRES_DB:-signalforge}
+    ports:
+      - "${POSTGRES_PORT:-15432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+    volumes:
+      - qdrant-data:/qdrant/storage
+
+  api:
+    image: signalforge-api:${SIGNALFORGE_IMAGE_TAG:-phase8}
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    environment:
+      SIGNALFORGE_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-signalforge}:${POSTGRES_PASSWORD:-signalforge}@postgres:5432/${POSTGRES_DB:-signalforge}
+      SIGNALFORGE_QDRANT_URL: http://qdrant:6333
+      SIGNALFORGE_COLLECTION: ${SIGNALFORGE_COLLECTION:-sec_chunks}
+      SIGNALFORGE_EMBEDDING_MODEL: ${SIGNALFORGE_EMBEDDING_MODEL:-jinaai/jina-embeddings-v2-small-en}
+      SIGNALFORGE_PLANNER_MODEL: ${SIGNALFORGE_PLANNER_MODEL:-deepseek-v4-flash}
+      SIGNALFORGE_ANSWER_MODEL: ${SIGNALFORGE_ANSWER_MODEL:-deepseek-v4-flash}
+      SIGNALFORGE_CORS_ORIGINS: ${SIGNALFORGE_CORS_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      SEC_COMPANY_NAME: ${SEC_COMPANY_NAME:-}
+      SEC_EMAIL: ${SEC_EMAIL:-}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - processed-data:/app/data/processed
+      - raw-filings:/app/data/raw
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "uv",
+          "run",
+          "--no-sync",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).read()",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  worker:
+    image: signalforge-worker:${SIGNALFORGE_IMAGE_TAG:-phase8}
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    environment:
+      SIGNALFORGE_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-signalforge}:${POSTGRES_PASSWORD:-signalforge}@postgres:5432/${POSTGRES_DB:-signalforge}
+      SIGNALFORGE_QDRANT_URL: http://qdrant:6333
+      SIGNALFORGE_COLLECTION: ${SIGNALFORGE_COLLECTION:-sec_chunks}
+      SIGNALFORGE_EMBEDDING_MODEL: ${SIGNALFORGE_EMBEDDING_MODEL:-jinaai/jina-embeddings-v2-small-en}
+      SIGNALFORGE_PLANNER_MODEL: ${SIGNALFORGE_PLANNER_MODEL:-deepseek-v4-flash}
+      SIGNALFORGE_ANSWER_MODEL: ${SIGNALFORGE_ANSWER_MODEL:-deepseek-v4-flash}
+      SIGNALFORGE_WORKER_INTERVAL_SECONDS: ${SIGNALFORGE_WORKER_INTERVAL_SECONDS:-300}
+      SIGNALFORGE_INGEST_LIMIT_PER_SOURCE: ${SIGNALFORGE_INGEST_LIMIT_PER_SOURCE:-}
+      SIGNALFORGE_ENABLE_SCHEDULED_INGESTION: ${SIGNALFORGE_ENABLE_SCHEDULED_INGESTION:-true}
+      SIGNALFORGE_PROCESSED_DIR: /app/data/processed
+      SIGNALFORGE_CHUNK_SIZE: ${SIGNALFORGE_CHUNK_SIZE:-4000}
+      SIGNALFORGE_CHUNK_OVERLAP: ${SIGNALFORGE_CHUNK_OVERLAP:-500}
+      SIGNALFORGE_VECTORIZE_BATCH_SIZE: ${SIGNALFORGE_VECTORIZE_BATCH_SIZE:-16}
+      SIGNALFORGE_LOG_LEVEL: ${SIGNALFORGE_LOG_LEVEL:-INFO}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      SEC_COMPANY_NAME: ${SEC_COMPANY_NAME:-}
+      SEC_EMAIL: ${SEC_EMAIL:-}
+    volumes:
+      - processed-data:/app/data/processed
+      - raw-filings:/app/data/raw
+
+  frontend:
+    image: signalforge-frontend:${SIGNALFORGE_IMAGE_TAG:-phase8}
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      SIGNALFORGE_API_BASE_URL: ${SIGNALFORGE_API_BASE_URL:-http://localhost:8000}
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+
+volumes:
+  postgres-data:
+  qdrant-data:
+  processed-data:
+  raw-filings:

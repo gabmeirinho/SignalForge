@@ -85,9 +85,9 @@ def load_approved_enabled_sources(connection, *, ticker: str | None = None) -> l
         FROM sources AS s
         LEFT JOIN companies AS c ON c.id = s.company_id
         WHERE s.discovery_status IN ('approved', 'manual')
-          AND s.enabled = 1
+          AND s.enabled = ?
     """
-    parameters: list[object] = []
+    parameters: list[object] = [True]
     if ticker:
         query += " AND c.ticker = ?"
         parameters.append(ticker.upper())

@@ -1,0 +1,1 @@
+window.SIGNALFORGE_RUNTIME_CONFIG = {};

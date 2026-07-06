@@ -3,7 +3,16 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from types import TracebackType
+from typing import Any, Iterable
+from urllib.parse import unquote, urlparse
 
+from psycopg.types.json import Jsonb
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Connection, Engine
+
+from signalforge.config import sqlalchemy_database_url
+from signalforge.migrations import upgrade_database
 from signalforge.sections import TextChunk
 
 SOURCE_TYPES = {
@@ -85,15 +94,144 @@ class GenericDocumentChunk:
     text: str
 
 
-def connect_database(path: str | Path) -> sqlite3.Connection:
-    db_path = Path(path)
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(db_path)
-    connection.row_factory = sqlite3.Row
-    return connection
+class StorageConnection:
+    def __init__(
+        self,
+        *,
+        target: str,
+        sqlite_connection: sqlite3.Connection | None = None,
+        sqlalchemy_engine: Engine | None = None,
+    ) -> None:
+        self.target = target
+        self._sqlite_connection = sqlite_connection
+        self._sqlalchemy_engine = sqlalchemy_engine
+        self._sqlalchemy_connection: Connection | None = None
+
+    @property
+    def dialect_name(self) -> str:
+        if self._sqlite_connection is not None:
+            return "sqlite"
+        if self._sqlalchemy_connection is not None:
+            return self._sqlalchemy_connection.dialect.name
+        if self._sqlalchemy_engine is not None:
+            return self._sqlalchemy_engine.dialect.name
+        raise RuntimeError("Storage connection is not open")
+
+    def __enter__(self) -> "StorageConnection":
+        if self._sqlalchemy_engine is not None and self._sqlalchemy_connection is None:
+            self._sqlalchemy_connection = self._sqlalchemy_engine.connect()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        if exc_type is not None:
+            self.rollback()
+        self.close()
+
+    def execute(self, query: str, parameters: Iterable[Any] | dict[str, Any] = ()):
+        if self._sqlite_connection is not None:
+            return self._sqlite_connection.execute(query, parameters)
+
+        connection = self._require_sqlalchemy_connection()
+        statement, bound_parameters = _sqlalchemy_statement(query, parameters)
+        return connection.execute(text(statement), bound_parameters).mappings()
+
+    def executemany(self, query: str, parameters: Iterable[Iterable[Any] | dict[str, Any]]):
+        if self._sqlite_connection is not None:
+            return self._sqlite_connection.executemany(query, parameters)
+
+        rows = list(parameters)
+        if not rows:
+            return None
+
+        statement, bound_parameters = _sqlalchemy_many_statement(query, rows)
+        return self._require_sqlalchemy_connection().execute(text(statement), bound_parameters)
+
+    def executescript(self, script: str):
+        if self._sqlite_connection is None:
+            raise NotImplementedError("executescript is only used by the SQLite compatibility path")
+        return self._sqlite_connection.executescript(script)
+
+    def commit(self) -> None:
+        if self._sqlite_connection is not None:
+            self._sqlite_connection.commit()
+            return
+        self._require_sqlalchemy_connection().commit()
+
+    def rollback(self) -> None:
+        if self._sqlite_connection is not None:
+            self._sqlite_connection.rollback()
+            return
+        if self._sqlalchemy_connection is not None:
+            self._sqlalchemy_connection.rollback()
+
+    def close(self) -> None:
+        if self._sqlite_connection is not None:
+            self._sqlite_connection.close()
+            return
+        if self._sqlalchemy_connection is not None:
+            self._sqlalchemy_connection.close()
+            self._sqlalchemy_connection = None
+        if self._sqlalchemy_engine is not None:
+            self._sqlalchemy_engine.dispose()
+
+    def _require_sqlalchemy_connection(self) -> Connection:
+        if self._sqlalchemy_connection is None:
+            if self._sqlalchemy_engine is None:
+                raise RuntimeError("Storage connection is not open")
+            self._sqlalchemy_connection = self._sqlalchemy_engine.connect()
+        return self._sqlalchemy_connection
 
 
-def initialize_database(connection: sqlite3.Connection) -> None:
+def connect_database(path: str | Path) -> StorageConnection:
+    target = str(path)
+    parsed = urlparse(target)
+
+    if parsed.scheme in {"", "file", "sqlite"}:
+        db_path = _sqlite_path_from_target(target)
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        connection = sqlite3.connect(db_path)
+        connection.row_factory = sqlite3.Row
+        return StorageConnection(target=str(db_path), sqlite_connection=connection)
+
+    engine = create_engine(sqlalchemy_database_url(target), future=True)
+    return StorageConnection(target=target, sqlalchemy_engine=engine)
+
+
+def _sqlite_path_from_target(target: str | Path) -> Path:
+    target_text = str(target)
+    parsed = urlparse(target_text)
+
+    if parsed.scheme == "":
+        return Path(target_text)
+    if parsed.scheme == "file":
+        return Path(unquote(parsed.path))
+
+    if parsed.scheme == "sqlite":
+        if parsed.netloc and parsed.netloc != "localhost":
+            raise ValueError(f"Unsupported SQLite database URL host: {parsed.netloc}")
+        return Path(unquote(parsed.path))
+
+    raise NotImplementedError(
+        "SIGNALFORGE_DATABASE_URL is configured for a non-SQLite database, "
+        "but Postgres access is introduced in a later migration phase."
+    )
+
+
+def initialize_database(connection: StorageConnection) -> None:
+    if connection.dialect_name != "sqlite":
+        upgrade_database(connection.target)
+        return
+
+    migration_target = _migration_target_for_empty_database(connection)
+    if migration_target is not None:
+        upgrade_database(migration_target)
+        return
+
     connection.executescript(
         """
         PRAGMA foreign_keys = ON;
@@ -287,6 +425,28 @@ def initialize_database(connection: sqlite3.Connection) -> None:
     connection.commit()
 
 
+def _migration_target_for_empty_database(connection: StorageConnection) -> str | None:
+    user_tables = {
+        row["name"]
+        for row in connection.execute(
+            """
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table'
+              AND name NOT LIKE 'sqlite_%'
+              AND name != 'alembic_version'
+            """
+        ).fetchall()
+    }
+    if user_tables:
+        return None
+
+    database_path = connection.execute("PRAGMA database_list").fetchone()["file"]
+    if not database_path:
+        return None
+    return database_path
+
+
 def upsert_company(connection: sqlite3.Connection, company: CompanyRecord) -> int:
     ticker = company.ticker.upper()
     connection.execute(
@@ -378,7 +538,7 @@ def upsert_source(connection: sqlite3.Connection, source: SourceRecord) -> int:
             source.ownership,
             source.trust_level,
             source.discovery_status,
-            int(source.enabled),
+            source.enabled,
             source.confidence_score,
             source.discovery_reason,
         ),
@@ -406,12 +566,16 @@ def list_sources(
             s.*,
             c.ticker,
             c.name AS company_name,
-            COUNT(DISTINCT d.id) AS document_count,
+            COALESCE(document_counts.document_count, 0) AS document_count,
             latest_run.status AS last_ingestion_status,
             latest_run.completed_at AS last_ingestion_completed_at
         FROM sources AS s
         LEFT JOIN companies AS c ON c.id = s.company_id
-        LEFT JOIN documents AS d ON d.source_id = s.id
+        LEFT JOIN (
+            SELECT source_id, COUNT(*) AS document_count
+            FROM documents
+            GROUP BY source_id
+        ) AS document_counts ON document_counts.source_id = s.id
         LEFT JOIN source_ingestion_runs AS latest_run
           ON latest_run.id = (
               SELECT sir.id
@@ -434,10 +598,9 @@ def list_sources(
 
     if enabled is not None:
         query += " AND s.enabled = ?"
-        parameters.append(int(enabled))
+        parameters.append(enabled)
 
     query += """
-        GROUP BY s.id
         ORDER BY
             c.ticker IS NULL,
             c.ticker,
@@ -469,7 +632,7 @@ def approve_source(connection: sqlite3.Connection, source_id: int) -> sqlite3.Ro
         UPDATE sources
         SET
             discovery_status = 'approved',
-            enabled = 1,
+            enabled = TRUE,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
         """,
@@ -485,7 +648,7 @@ def reject_source(connection: sqlite3.Connection, source_id: int) -> sqlite3.Row
         UPDATE sources
         SET
             discovery_status = 'rejected',
-            enabled = 0,
+            enabled = FALSE,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
         """,
@@ -498,7 +661,11 @@ def reject_source(connection: sqlite3.Connection, source_id: int) -> sqlite3.Row
 def upsert_document(connection: sqlite3.Connection, document: DocumentRecord) -> int:
     _validate_document(document)
     fetched_at = document.fetched_at or _utc_now()
-    metadata_json = json.dumps(document.metadata or {}, sort_keys=True)
+    metadata = document.metadata or {}
+    metadata_value = json.dumps(metadata, sort_keys=True)
+    if connection.dialect_name == "postgresql":
+        metadata_value = Jsonb(metadata)
+
     connection.execute(
         """
         INSERT INTO documents (
@@ -535,7 +702,7 @@ def upsert_document(connection: sqlite3.Connection, document: DocumentRecord) ->
             document.clean_text_path,
             document.content_hash,
             document.document_type,
-            metadata_json,
+            metadata_value,
         ),
     )
     connection.commit()
@@ -588,11 +755,15 @@ def create_source_ingestion_run(connection: sqlite3.Connection, source_id: int) 
             started_at
         )
         VALUES (?, 'running', ?)
+        RETURNING id
         """,
         (source_id, started_at),
     )
+    row = cursor.fetchone()
+    if row is None:
+        raise RuntimeError(f"Failed to create source ingestion run for source: {source_id}")
     connection.commit()
-    return int(cursor.lastrowid)
+    return int(row["id"])
 
 
 def complete_source_ingestion_run(
@@ -803,11 +974,11 @@ def load_document_chunks_for_vector_index(
          AND dce.embedding_model = ?
          AND dce.vector_collection = ?
         WHERE dce.document_chunk_id IS NULL
-          AND s.enabled = 1
+          AND s.enabled = ?
           AND s.discovery_status IN ('approved', 'manual')
         ORDER BY d.id, dc.chunk_index
         """,
-        (embedding_model, vector_collection),
+        (embedding_model, vector_collection, True),
     ).fetchall()
 
 
@@ -867,6 +1038,61 @@ def record_chunk_embeddings(
             (chunk_id, embedding_model, vector_collection, vector_id, embedded_at)
             for chunk_id, vector_id in chunk_vector_ids
         ],
+    )
+    connection.commit()
+
+
+def reset_sec_index_metadata(
+    connection: sqlite3.Connection,
+    *,
+    embedding_model: str,
+    vector_collection: str,
+) -> None:
+    now = _utc_now()
+    connection.execute(
+        """
+        UPDATE embedding_runs
+        SET
+            status = 'pending',
+            expected_point_count = (
+                SELECT COUNT(*)
+                FROM chunks AS c
+                WHERE c.filing_id = embedding_runs.filing_id
+            ),
+            indexed_point_count = 0,
+            error_message = NULL,
+            started_at = NULL,
+            completed_at = NULL,
+            updated_at = ?
+        WHERE embedding_model = ?
+          AND vector_collection = ?
+        """,
+        (now, embedding_model, vector_collection),
+    )
+    connection.execute(
+        """
+        DELETE FROM chunk_embeddings
+        WHERE embedding_model = ?
+          AND vector_collection = ?
+        """,
+        (embedding_model, vector_collection),
+    )
+    connection.commit()
+
+
+def reset_document_index_metadata(
+    connection: sqlite3.Connection,
+    *,
+    embedding_model: str,
+    vector_collection: str,
+) -> None:
+    connection.execute(
+        """
+        DELETE FROM document_chunk_embeddings
+        WHERE embedding_model = ?
+          AND vector_collection = ?
+        """,
+        (embedding_model, vector_collection),
     )
     connection.commit()
 
@@ -1027,6 +1253,60 @@ def load_index_section_counts(connection: sqlite3.Connection) -> list[sqlite3.Ro
     ).fetchall()
 
 
+def load_index_health_counts(
+    connection: sqlite3.Connection,
+    *,
+    embedding_model: str,
+    vector_collection: str,
+) -> dict[str, int]:
+    row = connection.execute(
+        """
+        SELECT
+            (SELECT COUNT(*) FROM chunks) AS sec_expected_points,
+            (
+                SELECT COALESCE(SUM(er.expected_point_count), 0)
+                FROM embedding_runs AS er
+                WHERE er.embedding_model = ?
+                  AND er.vector_collection = ?
+                  AND er.status = 'ready'
+            ) AS sec_ready_points,
+            (
+                SELECT COUNT(*)
+                FROM chunk_embeddings AS ce
+                WHERE ce.embedding_model = ?
+                  AND ce.vector_collection = ?
+            ) AS sec_embedding_records,
+            (
+                SELECT COUNT(*)
+                FROM document_chunks AS dc
+                JOIN documents AS d ON d.id = dc.document_id
+                JOIN sources AS s ON s.id = d.source_id
+                WHERE s.enabled = ?
+                  AND s.discovery_status IN ('approved', 'manual')
+            ) AS document_expected_points,
+            (
+                SELECT COUNT(*)
+                FROM document_chunk_embeddings AS dce
+                WHERE dce.embedding_model = ?
+                  AND dce.vector_collection = ?
+            ) AS document_embedding_records
+        """,
+        (
+            embedding_model,
+            vector_collection,
+            embedding_model,
+            vector_collection,
+            True,
+            embedding_model,
+            vector_collection,
+        ),
+    ).fetchone()
+    if row is None:
+        raise RuntimeError("Failed to load index health counts")
+
+    return {key: int(row[key] or 0) for key in row.keys()}
+
+
 def update_embedding_run_progress(
     connection: sqlite3.Connection,
     *,
@@ -1080,3 +1360,47 @@ def _validate_choice(field_name: str, value: str, supported_values: set[str]) ->
 
 def _utc_now() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _sqlalchemy_statement(
+    query: str,
+    parameters: Iterable[Any] | dict[str, Any],
+) -> tuple[str, dict[str, Any]]:
+    if isinstance(parameters, dict):
+        return query, parameters
+
+    values = tuple(parameters)
+    return _replace_qmark_parameters(query, values)
+
+
+def _sqlalchemy_many_statement(
+    query: str,
+    rows: list[Iterable[Any] | dict[str, Any]],
+) -> tuple[str, list[dict[str, Any]]]:
+    first = rows[0]
+    if isinstance(first, dict):
+        return query, rows  # type: ignore[return-value]
+
+    statement, first_parameters = _replace_qmark_parameters(query, tuple(first))
+    converted_rows = [first_parameters]
+    for row in rows[1:]:
+        if isinstance(row, dict):
+            raise TypeError("executemany parameters must be consistently positional or named")
+        _, parameters = _replace_qmark_parameters(query, tuple(row))
+        converted_rows.append(parameters)
+    return statement, converted_rows
+
+
+def _replace_qmark_parameters(query: str, values: tuple[Any, ...]) -> tuple[str, dict[str, Any]]:
+    parts = query.split("?")
+    expected_count = len(parts) - 1
+    if expected_count != len(values):
+        raise ValueError(f"Expected {expected_count} SQL parameters, received {len(values)}")
+
+    statement = parts[0]
+    parameters = {}
+    for index, value in enumerate(values):
+        name = f"p{index}"
+        statement += f":{name}{parts[index + 1]}"
+        parameters[name] = value
+    return statement, parameters

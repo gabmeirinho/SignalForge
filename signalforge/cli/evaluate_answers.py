@@ -8,22 +8,19 @@ from dotenv import load_dotenv
 
 from signalforge.answer_generator import (
     AnswerGenerator,
-    DEFAULT_ANSWER_MODEL,
     ExtractiveAnswerGenerator,
     create_answer_generator_from_environment,
 )
 from signalforge.cli.answer_query import select_ready_accessions_by_ticker, years_for_plan_scope
 from signalforge.cli.evaluate_planner import compare_plan
+from signalforge.config import RuntimeConfig
 from signalforge.query_planner import (
-    DEFAULT_PLANNER_MODEL,
     PlannerContext,
     SearchPlan,
     create_query_planner_from_environment,
 )
 from signalforge.storage import connect_database, initialize_database
 from signalforge.vector_store import (
-    DEFAULT_COLLECTION,
-    DEFAULT_EMBEDDING_MODEL,
     create_qdrant_client,
     retrieve_chunks,
 )
@@ -248,6 +245,7 @@ def print_case_output(case: dict, plan_result, chunks: list, answer: str) -> Non
 
 
 def parse_args() -> argparse.Namespace:
+    config = RuntimeConfig.from_environment()
     parser = argparse.ArgumentParser(description="Evaluate generated answers on golden cases.")
     parser.add_argument(
         "--dataset",
@@ -256,12 +254,12 @@ def parse_args() -> argparse.Namespace:
         help=f"Golden dataset path (default: {DEFAULT_DATASET})",
     )
     parser.add_argument("--case-id", help="Run one golden case by id.")
-    parser.add_argument("--db-path", default="data/signalforge.sqlite3")
-    parser.add_argument("--qdrant-path", default="data/qdrant")
-    parser.add_argument("--collection", default=DEFAULT_COLLECTION)
-    parser.add_argument("--embedding-model", default=DEFAULT_EMBEDDING_MODEL)
-    parser.add_argument("--planner-model", default=DEFAULT_PLANNER_MODEL)
-    parser.add_argument("--answer-model", default=DEFAULT_ANSWER_MODEL)
+    parser.add_argument("--db-path", default=config.database_target)
+    parser.add_argument("--qdrant-path", default=config.qdrant_target)
+    parser.add_argument("--collection", default=config.collection)
+    parser.add_argument("--embedding-model", default=config.embedding_model)
+    parser.add_argument("--planner-model", default=config.planner_model)
+    parser.add_argument("--answer-model", default=config.answer_model)
     parser.add_argument("--limit", type=int, default=5)
     parser.add_argument(
         "--use-expected-plan",

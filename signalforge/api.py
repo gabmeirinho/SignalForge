@@ -1,14 +1,13 @@
+import os
 from collections import defaultdict
-from dataclasses import dataclass
-from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
-from signalforge.answer_generator import DEFAULT_ANSWER_MODEL
-from signalforge.query_planner import DEFAULT_PLANNER_MODEL
+from signalforge.config import RuntimeConfig, target_exists
+from signalforge.index_health import CorpusIndexHealth, IndexHealth, check_index_health
 from signalforge.rag_service import QueryResponse, answer_question
 from signalforge.storage import (
     connect_database,
@@ -17,42 +16,42 @@ from signalforge.storage import (
     load_index_metadata,
     load_index_section_counts,
 )
-from signalforge.vector_store import DEFAULT_COLLECTION, DEFAULT_EMBEDDING_MODEL
+from signalforge.vector_store import create_qdrant_client
 
 
 load_dotenv()
 
+DEFAULT_CORS_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+]
+
+
+def configured_cors_origins() -> list[str]:
+    value = os.getenv("SIGNALFORGE_CORS_ORIGINS")
+    if value is None:
+        return DEFAULT_CORS_ORIGINS
+    return [origin for raw_origin in value.split(",") if (origin := raw_origin.strip())]
+
+
+def format_optional_datetime(value) -> str | None:
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
 app = FastAPI(title="SignalForge API")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=configured_cors_origins(),
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
-
-
-@dataclass(frozen=True)
-class ApiConfig:
-    db_path: str = "data/signalforge.sqlite3"
-    qdrant_path: str = "data/qdrant"
-    collection: str = DEFAULT_COLLECTION
-    embedding_model: str = DEFAULT_EMBEDDING_MODEL
-    planner_model: str = DEFAULT_PLANNER_MODEL
-    answer_model: str = DEFAULT_ANSWER_MODEL
-
-    @classmethod
-    def from_environment(cls) -> "ApiConfig":
-        import os
-
-        return cls(
-            db_path=os.getenv("SIGNALFORGE_DB_PATH", cls.db_path),
-            qdrant_path=os.getenv("SIGNALFORGE_QDRANT_PATH", cls.qdrant_path),
-            collection=os.getenv("SIGNALFORGE_COLLECTION", cls.collection),
-            embedding_model=os.getenv("SIGNALFORGE_EMBEDDING_MODEL", cls.embedding_model),
-            planner_model=os.getenv("SIGNALFORGE_PLANNER_MODEL", cls.planner_model),
-            answer_model=os.getenv("SIGNALFORGE_ANSWER_MODEL", cls.answer_model),
-        )
 
 
 class HealthResponse(BaseModel):
@@ -115,6 +114,29 @@ class IndexResponse(BaseModel):
     collection: str
 
 
+class CorpusIndexHealthResponse(BaseModel):
+    name: str
+    postgres_expected_points: int
+    postgres_ready_points: int
+    postgres_embedding_records: int
+    qdrant_points: int
+    missing_qdrant_points: int
+    extra_qdrant_points: int
+    is_complete_in_postgres: bool
+    is_consistent_with_qdrant: bool
+
+
+class IndexHealthResponse(BaseModel):
+    status: str
+    collection: str
+    collection_exists: bool
+    embedding_model: str
+    total_postgres_expected_points: int
+    total_qdrant_points: int
+    sec: CorpusIndexHealthResponse
+    documents: CorpusIndexHealthResponse
+
+
 class QueryRequest(BaseModel):
     question: str = Field(..., min_length=3, max_length=1000)
     include_plan: bool = True
@@ -161,20 +183,20 @@ class QueryApiResponse(BaseModel):
 
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
-    config = ApiConfig.from_environment()
+    config = RuntimeConfig.from_environment()
     return HealthResponse(
         status="ok",
-        database=Path(config.db_path).exists(),
-        qdrant_path=Path(config.qdrant_path).exists(),
+        database=target_exists(config.database_target),
+        qdrant_path=target_exists(config.qdrant_target),
     )
 
 
 @app.get("/api/index", response_model=IndexResponse)
 def index() -> IndexResponse:
-    config = ApiConfig.from_environment()
+    config = RuntimeConfig.from_environment()
     ensure_local_index(config)
 
-    with connect_database(config.db_path) as connection:
+    with connect_database(config.database_target) as connection:
         initialize_database(connection)
         filing_rows = load_index_metadata(
             connection,
@@ -240,7 +262,7 @@ def index() -> IndexResponse:
             confidence_score=row["confidence_score"],
             document_count=int(row["document_count"]),
             last_ingestion_status=row["last_ingestion_status"],
-            last_ingestion_completed_at=row["last_ingestion_completed_at"],
+            last_ingestion_completed_at=format_optional_datetime(row["last_ingestion_completed_at"]),
         )
         for row in source_rows
     ]
@@ -268,15 +290,30 @@ def index() -> IndexResponse:
     )
 
 
+@app.get("/api/index/health", response_model=IndexHealthResponse)
+def index_health() -> IndexHealthResponse:
+    config = RuntimeConfig.from_environment()
+    return index_health_response(load_current_index_health(config))
+
+
 @app.post("/api/query", response_model=QueryApiResponse)
 def query(request: QueryRequest) -> QueryApiResponse:
-    config = ApiConfig.from_environment()
+    config = RuntimeConfig.from_environment()
+    health = load_current_index_health(config)
+    if health.status == "degraded":
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "message": "Vector index is inconsistent; repair or revectorize before querying.",
+                "health": index_health_response(health).model_dump(),
+            },
+        )
 
     try:
         response = answer_question(
             request.question,
-            db_path=config.db_path,
-            qdrant_path=config.qdrant_path,
+            db_path=config.database_target,
+            qdrant_path=config.qdrant_target,
             collection=config.collection,
             embedding_model=config.embedding_model,
             planner_model=config.planner_model,
@@ -294,16 +331,16 @@ def query(request: QueryRequest) -> QueryApiResponse:
     )
 
 
-def ensure_local_index(config: ApiConfig) -> None:
-    if not Path(config.db_path).exists():
+def ensure_local_index(config: RuntimeConfig) -> None:
+    if not target_exists(config.database_target):
         raise HTTPException(
             status_code=503,
-            detail=f"SignalForge database not found at {config.db_path}",
+            detail=f"SignalForge database not found at {config.database_target}",
         )
-    if not Path(config.qdrant_path).exists():
+    if not target_exists(config.qdrant_target):
         raise HTTPException(
             status_code=503,
-            detail=f"SignalForge Qdrant index not found at {config.qdrant_path}",
+            detail=f"SignalForge Qdrant index not found at {config.qdrant_target}",
         )
 
 
@@ -343,4 +380,48 @@ def query_response_to_api(
             )
             for source in response.sources
         ],
+    )
+
+
+def load_current_index_health(config: RuntimeConfig) -> IndexHealth:
+    ensure_local_index(config)
+
+    with connect_database(config.database_target) as connection:
+        initialize_database(connection)
+        client = create_qdrant_client(config.qdrant_target)
+        try:
+            return check_index_health(
+                connection,
+                client,
+                collection=config.collection,
+                embedding_model=config.embedding_model,
+            )
+        finally:
+            client.close()
+
+
+def corpus_index_health_response(health: CorpusIndexHealth) -> CorpusIndexHealthResponse:
+    return CorpusIndexHealthResponse(
+        name=health.name,
+        postgres_expected_points=health.postgres_expected_points,
+        postgres_ready_points=health.postgres_ready_points,
+        postgres_embedding_records=health.postgres_embedding_records,
+        qdrant_points=health.qdrant_points,
+        missing_qdrant_points=health.missing_qdrant_points,
+        extra_qdrant_points=health.extra_qdrant_points,
+        is_complete_in_postgres=health.is_complete_in_postgres,
+        is_consistent_with_qdrant=health.is_consistent_with_qdrant,
+    )
+
+
+def index_health_response(health: IndexHealth) -> IndexHealthResponse:
+    return IndexHealthResponse(
+        status=health.status,
+        collection=health.collection,
+        collection_exists=health.collection_exists,
+        embedding_model=health.embedding_model,
+        total_postgres_expected_points=health.total_postgres_expected_points,
+        total_qdrant_points=health.total_qdrant_points,
+        sec=corpus_index_health_response(health.sec),
+        documents=corpus_index_health_response(health.documents),
     )

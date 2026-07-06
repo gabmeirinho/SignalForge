@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from math import ceil
 from pathlib import Path
 from typing import Callable, Iterable
+from urllib.parse import urlparse
 
 from qdrant_client import QdrantClient, models
 
@@ -18,8 +19,18 @@ class SearchResult:
     payload: dict
 
 
-def create_qdrant_client(path: str | Path) -> QdrantClient:
-    qdrant_path = Path(path)
+def create_qdrant_client(target: str | Path) -> QdrantClient:
+    target = str(target)
+    parsed = urlparse(target)
+    if parsed.scheme in {"http", "https"}:
+        return QdrantClient(url=target)
+    if parsed.scheme:
+        raise ValueError(
+            "Unsupported Qdrant target scheme. Use an http(s) URL for server mode "
+            "or a filesystem path for embedded local mode."
+        )
+
+    qdrant_path = Path(target)
     qdrant_path.parent.mkdir(parents=True, exist_ok=True)
     return QdrantClient(path=str(qdrant_path))
 
@@ -411,6 +422,29 @@ def semantic_search(
     return [
         SearchResult(score=point.score, payload=point.payload or {}) for point in response.points
     ]
+
+
+def count_points_by_payload(
+    client: QdrantClient,
+    *,
+    collection_name: str,
+    payload: dict[str, object],
+    exact: bool = True,
+) -> int:
+    if not client.collection_exists(collection_name):
+        return 0
+
+    conditions = [
+        models.FieldCondition(key=key, match=models.MatchValue(value=value))
+        for key, value in payload.items()
+    ]
+    count_filter = models.Filter(must=conditions) if conditions else None
+    result = client.count(
+        collection_name=collection_name,
+        count_filter=count_filter,
+        exact=exact,
+    )
+    return int(result.count)
 
 
 def retrieve_chunks(
