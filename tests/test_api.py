@@ -10,9 +10,13 @@ from signalforge.storage import (
     DocumentRecord,
     FilingMetadata,
     SourceRecord,
+    complete_query_run,
     complete_source_ingestion_run,
     connect_database,
+    create_query_run,
     create_source_ingestion_run,
+    fail_query_run,
+    get_or_create_research_session,
     initialize_database,
     replace_filing_chunks,
     set_embedding_run_status,
@@ -256,6 +260,140 @@ def test_index_health_endpoint_exposes_postgres_and_qdrant_counts(monkeypatch, t
             "is_consistent_with_qdrant": True,
         },
     }
+
+
+def test_query_runs_endpoint_returns_recent_runs_without_qdrant(monkeypatch, tmp_path):
+    db_path = tmp_path / "signalforge.sqlite3"
+    monkeypatch.setenv("SIGNALFORGE_DB_PATH", str(db_path))
+    monkeypatch.setenv("SIGNALFORGE_QDRANT_PATH", str(tmp_path / "missing-qdrant"))
+
+    with connect_database(db_path) as connection:
+        initialize_database(connection)
+        session_id = get_or_create_research_session(
+            connection,
+            session_key="local-session",
+            title="Local research",
+        )
+        other_session_id = get_or_create_research_session(
+            connection,
+            session_key="other-session",
+        )
+        first_run_id = create_query_run(
+            connection,
+            research_session_id=session_id,
+            question="First question",
+        )
+        complete_query_run(
+            connection,
+            run_id=first_run_id,
+            answer_text="First answer\nwith extra whitespace.",
+        )
+        second_run_id = create_query_run(
+            connection,
+            research_session_id=session_id,
+            question="Second question",
+        )
+        fail_query_run(
+            connection,
+            run_id=second_run_id,
+            error_message="RAG query failed: RuntimeError",
+        )
+        other_run_id = create_query_run(
+            connection,
+            research_session_id=other_session_id,
+            question="Other session question",
+        )
+        complete_query_run(
+            connection,
+            run_id=other_run_id,
+            answer_text="Other answer",
+        )
+
+    client = TestClient(app)
+    all_response = client.get("/api/query-runs")
+    filtered_response = client.get(f"/api/query-runs?research_session_id={session_id}&limit=1")
+
+    assert all_response.status_code == 200
+    assert [run["id"] for run in all_response.json()] == [other_run_id, second_run_id, first_run_id]
+    assert all_response.json()[2] == {
+        "id": first_run_id,
+        "research_session_id": session_id,
+        "question": "First question",
+        "status": "completed",
+        "answer_preview": "First answer with extra whitespace.",
+        "started_at": all_response.json()[2]["started_at"],
+        "completed_at": all_response.json()[2]["completed_at"],
+    }
+    assert filtered_response.status_code == 200
+    assert [run["id"] for run in filtered_response.json()] == [second_run_id]
+
+
+def test_query_run_detail_endpoint_returns_saved_history(monkeypatch, tmp_path):
+    db_path = tmp_path / "signalforge.sqlite3"
+    monkeypatch.setenv("SIGNALFORGE_DB_PATH", str(db_path))
+
+    with connect_database(db_path) as connection:
+        initialize_database(connection)
+        session_id = get_or_create_research_session(
+            connection,
+            session_key="local-session",
+        )
+        run_id = create_query_run(
+            connection,
+            research_session_id=session_id,
+            question="What changed in NVDA risk factors?",
+            planner_model="planner-v1",
+            answer_model="answer-v1",
+            embedding_model="embedding-v1",
+            vector_collection="collection-v1",
+        )
+        complete_query_run(
+            connection,
+            run_id=run_id,
+            answer_text="NVIDIA cites supply-chain risks [1].",
+            planned_query={"semantic_queries": ["NVDA risk factors"], "top_k": 8},
+            retrieval_metadata={
+                "sources": [{"label": "[1]", "score": 0.82, "ticker": "NVDA"}],
+                "warnings": [],
+            },
+        )
+
+    response = TestClient(app).get(f"/api/query-runs/{run_id}")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["id"] == run_id
+    assert payload["research_session_id"] == session_id
+    assert payload["question"] == "What changed in NVDA risk factors?"
+    assert payload["status"] == "completed"
+    assert payload["planner_model"] == "planner-v1"
+    assert payload["answer_model"] == "answer-v1"
+    assert payload["embedding_model"] == "embedding-v1"
+    assert payload["vector_collection"] == "collection-v1"
+    assert payload["planned_query"] == {"semantic_queries": ["NVDA risk factors"], "top_k": 8}
+    assert payload["retrieval_metadata"] == {
+        "sources": [{"label": "[1]", "score": 0.82, "ticker": "NVDA"}],
+        "warnings": [],
+    }
+    assert payload["answer_text"] == "NVIDIA cites supply-chain risks [1]."
+    assert payload["error_message"] is None
+    assert payload["started_at"] is not None
+    assert payload["completed_at"] is not None
+    assert payload["created_at"] is not None
+    assert payload["updated_at"] is not None
+
+
+def test_query_run_detail_endpoint_returns_404_for_missing_run(monkeypatch, tmp_path):
+    db_path = tmp_path / "signalforge.sqlite3"
+    monkeypatch.setenv("SIGNALFORGE_DB_PATH", str(db_path))
+
+    with connect_database(db_path) as connection:
+        initialize_database(connection)
+
+    response = TestClient(app).get("/api/query-runs/404")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Query run not found"}
 
 
 def test_query_validates_and_shapes_response(monkeypatch, tmp_path):
