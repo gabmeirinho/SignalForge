@@ -10,7 +10,11 @@ from signalforge.config import RuntimeConfig, target_exists
 from signalforge.index_health import CorpusIndexHealth, IndexHealth, check_index_health
 from signalforge.rag_service import QueryResponse, answer_question
 from signalforge.storage import (
+    complete_query_run,
     connect_database,
+    create_query_run,
+    fail_query_run,
+    get_or_create_research_session,
     initialize_database,
     list_query_runs,
     list_sources,
@@ -141,6 +145,7 @@ class IndexHealthResponse(BaseModel):
 
 class QueryRequest(BaseModel):
     question: str = Field(..., min_length=3, max_length=1000)
+    session_key: str | None = Field(default=None, max_length=200)
     include_plan: bool = True
     include_source_text: bool = True
 
@@ -149,6 +154,13 @@ class QueryRequest(BaseModel):
     def strip_question(cls, value):
         if isinstance(value, str):
             return value.strip()
+        return value
+
+    @field_validator("session_key", mode="before")
+    @classmethod
+    def strip_session_key(cls, value):
+        if isinstance(value, str):
+            return value.strip() or None
         return value
 
 
@@ -174,6 +186,8 @@ class SourceResponse(BaseModel):
 
 
 class QueryApiResponse(BaseModel):
+    query_run_id: int
+    research_session_id: int
     question: str
     answer: str
     warnings: list[str]
@@ -374,6 +388,22 @@ def query(request: QueryRequest) -> QueryApiResponse:
             },
         )
 
+    with connect_database(config.database_target) as connection:
+        initialize_database(connection)
+        research_session_id = get_or_create_research_session(
+            connection,
+            session_key=request.session_key or "default",
+        )
+        query_run_id = create_query_run(
+            connection,
+            research_session_id=research_session_id,
+            question=request.question,
+            planner_model=config.planner_model,
+            answer_model=config.answer_model,
+            embedding_model=config.embedding_model,
+            vector_collection=config.collection,
+        )
+
     try:
         response = answer_question(
             request.question,
@@ -385,15 +415,63 @@ def query(request: QueryRequest) -> QueryApiResponse:
             answer_model=config.answer_model,
         )
     except FileNotFoundError as error:
+        error_message = str(error)
+        record_failed_query_run(
+            config,
+            query_run_id=query_run_id,
+            error_message=error_message,
+        )
         raise HTTPException(status_code=503, detail=str(error)) from error
     except Exception as error:
-        raise HTTPException(status_code=500, detail=f"RAG query failed: {type(error).__name__}") from error
+        error_message = f"RAG query failed: {type(error).__name__}"
+        record_failed_query_run(
+            config,
+            query_run_id=query_run_id,
+            error_message=error_message,
+        )
+        raise HTTPException(status_code=500, detail=error_message) from error
+
+    with connect_database(config.database_target) as connection:
+        initialize_database(connection)
+        complete_query_run(
+            connection,
+            run_id=query_run_id,
+            answer_text=response.answer,
+            planned_query=response.plan.model_dump(),
+            retrieval_metadata=retrieval_metadata_from_response(response),
+            planner_model=config.planner_model,
+            answer_model=config.answer_model,
+            embedding_model=config.embedding_model,
+            vector_collection=config.collection,
+        )
 
     return query_response_to_api(
         response,
+        query_run_id=query_run_id,
+        research_session_id=research_session_id,
         include_plan=request.include_plan,
         include_source_text=request.include_source_text,
     )
+
+
+def record_failed_query_run(
+    config: RuntimeConfig,
+    *,
+    query_run_id: int,
+    error_message: str,
+) -> None:
+    with connect_database(config.database_target) as connection:
+        initialize_database(connection)
+        fail_query_run(
+            connection,
+            run_id=query_run_id,
+            error_message=error_message,
+            retrieval_metadata={"warnings": [], "used_fallback": False, "planner_error": None},
+            planner_model=config.planner_model,
+            answer_model=config.answer_model,
+            embedding_model=config.embedding_model,
+            vector_collection=config.collection,
+        )
 
 
 def ensure_local_database(config: RuntimeConfig) -> None:
@@ -416,10 +494,14 @@ def ensure_local_index(config: RuntimeConfig) -> None:
 def query_response_to_api(
     response: QueryResponse,
     *,
+    query_run_id: int,
+    research_session_id: int,
     include_plan: bool,
     include_source_text: bool,
 ) -> QueryApiResponse:
     return QueryApiResponse(
+        query_run_id=query_run_id,
+        research_session_id=research_session_id,
         question=response.question,
         answer=response.answer,
         warnings=response.warnings,
@@ -450,6 +532,36 @@ def query_response_to_api(
             for source in response.sources
         ],
     )
+
+
+def retrieval_metadata_from_response(response: QueryResponse) -> dict:
+    return {
+        "sources": [
+            {
+                "label": source.label,
+                "score": source.score,
+                "chunk_source": source.chunk_source,
+                "ticker": source.ticker,
+                "company_name": source.company_name,
+                "filing_date": source.filing_date,
+                "published_at": source.published_at,
+                "section_id": source.section_id,
+                "section_title": source.section_title,
+                "chunk_index": source.chunk_index,
+                "accession_number": source.accession_number,
+                "document_id": source.document_id,
+                "source_id": source.source_id,
+                "source_name": source.source_name,
+                "source_type": source.source_type,
+                "url": source.url,
+                "title": source.title,
+            }
+            for source in response.sources
+        ],
+        "warnings": response.warnings,
+        "used_fallback": response.used_fallback,
+        "planner_error": response.planner_error,
+    }
 
 
 def query_run_summary_response(run) -> QueryRunSummaryResponse:
