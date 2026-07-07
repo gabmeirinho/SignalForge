@@ -18,6 +18,8 @@ from signalforge.storage import (
     fail_query_run,
     get_or_create_research_session,
     initialize_database,
+    list_query_runs,
+    load_query_run,
     replace_filing_chunks,
     set_embedding_run_status,
     upsert_company,
@@ -451,6 +453,7 @@ def test_query_validates_and_shapes_response(monkeypatch, tmp_path):
         "/api/query",
         json={
             "question": "  What are NVIDIA's risks? ",
+            "session_key": " browser-session ",
             "include_plan": False,
             "include_source_text": False,
         },
@@ -460,9 +463,55 @@ def test_query_validates_and_shapes_response(monkeypatch, tmp_path):
     assert response.status_code == 200
     payload = response.json()
     assert payload["question"] == "What are NVIDIA's risks?"
+    assert payload["query_run_id"] > 0
+    assert payload["research_session_id"] > 0
     assert payload["plan"] is None
     assert payload["sources"][0]["text"] is None
     assert payload["sources"][0]["ticker"] == "NVDA"
+
+    with connect_database(db_path) as connection:
+        run = load_query_run(connection, payload["query_run_id"])
+
+    assert run is not None
+    assert run.research_session_id == payload["research_session_id"]
+    assert run.question == "What are NVIDIA's risks?"
+    assert run.status == "completed"
+    assert run.answer_text == "NVIDIA cites supply-chain risk [1]."
+    assert run.planned_query == {
+        "tickers": ["NVDA"],
+        "sections": ["1A"],
+        "filing_years": [],
+        "time_scope": "latest",
+        "semantic_queries": ["NVIDIA risk factors"],
+        "intent": "summary",
+        "top_k": 5,
+    }
+    assert run.retrieval_metadata == {
+        "sources": [
+            {
+                "label": "[1] NVDA 2026 Item 1A chunk 3",
+                "score": 0.82,
+                "chunk_source": "sec_filing",
+                "ticker": "NVDA",
+                "company_name": "NVIDIA CORP",
+                "filing_date": "2026-02-25",
+                "published_at": None,
+                "section_id": "1A",
+                "section_title": "Risk Factors",
+                "chunk_index": 3,
+                "accession_number": "0001045810-26-000021",
+                "document_id": None,
+                "source_id": None,
+                "source_name": None,
+                "source_type": None,
+                "url": None,
+                "title": None,
+            }
+        ],
+        "warnings": [],
+        "used_fallback": False,
+        "planner_error": None,
+    }
 
 
 def test_query_blocks_when_index_health_is_degraded(monkeypatch, tmp_path):
@@ -550,3 +599,48 @@ def test_query_passes_through_warnings_and_fallback_state(monkeypatch, tmp_path)
     assert payload["used_fallback"] is True
     assert payload["planner_error"] == "DEEPSEEK_API_KEY is not set; used local rule-based planner"
     assert payload["warnings"] == ["no retrieved evidence", "llm answer generation unavailable"]
+
+
+def test_query_persists_failed_run_when_answer_generation_raises(monkeypatch, tmp_path):
+    db_path = tmp_path / "signalforge.sqlite3"
+    qdrant_path = tmp_path / "qdrant"
+    db_path.touch()
+    qdrant_path.mkdir()
+    monkeypatch.setenv("SIGNALFORGE_DB_PATH", str(db_path))
+    monkeypatch.setenv("SIGNALFORGE_QDRANT_PATH", str(qdrant_path))
+    monkeypatch.setenv("SIGNALFORGE_PLANNER_MODEL", "planner-v1")
+    monkeypatch.setenv("SIGNALFORGE_ANSWER_MODEL", "answer-v1")
+    monkeypatch.setenv("SIGNALFORGE_EMBEDDING_MODEL", "embedding-v1")
+    monkeypatch.setenv("SIGNALFORGE_COLLECTION", "collection-v1")
+
+    def fake_answer_question(question, **kwargs):
+        raise RuntimeError("answer backend is unavailable")
+
+    monkeypatch.setattr("signalforge.api.answer_question", fake_answer_question)
+
+    response = TestClient(app).post(
+        "/api/query",
+        json={"question": "Summarize Intel risk factors.", "session_key": "failure-session"},
+    )
+
+    assert response.status_code == 500
+    assert response.json() == {"detail": "RAG query failed: RuntimeError"}
+
+    with connect_database(db_path) as connection:
+        runs = list_query_runs(connection, limit=1)
+        run = load_query_run(connection, runs[0].id)
+
+    assert run is not None
+    assert run.question == "Summarize Intel risk factors."
+    assert run.status == "failed"
+    assert run.answer_text is None
+    assert run.error_message == "RAG query failed: RuntimeError"
+    assert run.planner_model == "planner-v1"
+    assert run.answer_model == "answer-v1"
+    assert run.embedding_model == "embedding-v1"
+    assert run.vector_collection == "collection-v1"
+    assert run.retrieval_metadata == {
+        "warnings": [],
+        "used_fallback": False,
+        "planner_error": None,
+    }
