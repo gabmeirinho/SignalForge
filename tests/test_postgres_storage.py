@@ -1,10 +1,12 @@
 import os
+from datetime import UTC, datetime
 from urllib.parse import urlparse
 
 import pytest
 from sqlalchemy import create_engine, text
 
 from signalforge.config import sqlalchemy_database_url
+from signalforge.models import QueryRun, ResearchSession
 from signalforge.sections import TextChunk
 from signalforge.storage import (
     CompanyRecord,
@@ -39,6 +41,8 @@ from signalforge.storage import (
 pytestmark = pytest.mark.postgres
 
 SIGNALFORGE_TABLES = (
+    "query_runs",
+    "research_sessions",
     "source_ingestion_runs",
     "document_chunk_embeddings",
     "document_chunks",
@@ -289,6 +293,41 @@ def test_postgres_embedding_status_index_metadata_and_mixed_retrieval(
     assert remaining_document_rows == []
     assert sources[0]["document_count"] == 1
     assert sources[0]["last_ingestion_status"] == "completed"
+
+
+def test_postgres_query_session_orm_round_trips_json(postgres_database_url):
+    started_at = datetime.now(UTC)
+
+    with connect_database(postgres_database_url) as connection:
+        initialize_database(connection)
+        if connection.session is None:
+            raise AssertionError("StorageConnection did not create a SQLAlchemy session")
+
+        session = connection.session
+        research_session = ResearchSession(
+            session_key="postgres-session-1",
+            title="Postgres research",
+            metadata_json={"ticker": "NVDA"},
+        )
+        session.add(research_session)
+        session.flush()
+        query_run = QueryRun(
+            research_session_id=research_session.id,
+            question="Summarize AI infrastructure updates",
+            status="completed",
+            planned_query_json={"semantic_queries": ["AI infrastructure"]},
+            retrieval_metadata_json={"chunks": [1]},
+            started_at=started_at,
+            completed_at=started_at,
+        )
+        session.add(query_run)
+        session.commit()
+
+        loaded_query = session.get(QueryRun, query_run.id)
+
+    assert loaded_query is not None
+    assert loaded_query.planned_query_json == {"semantic_queries": ["AI infrastructure"]}
+    assert loaded_query.retrieval_metadata_json == {"chunks": [1]}
 
 
 def reset_postgres_database(database_url: str) -> None:

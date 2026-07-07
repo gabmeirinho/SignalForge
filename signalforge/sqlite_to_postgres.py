@@ -25,6 +25,8 @@ COPY_TABLES = (
     "document_chunk_embeddings",
     "embedding_runs",
     "source_ingestion_runs",
+    "research_sessions",
+    "query_runs",
 )
 
 ID_TABLES = (
@@ -35,6 +37,8 @@ ID_TABLES = (
     "chunks",
     "document_chunks",
     "source_ingestion_runs",
+    "research_sessions",
+    "query_runs",
 )
 
 
@@ -213,6 +217,15 @@ def _copy_table(source: sqlite3.Connection, target: Connection, table_name: str)
 def _prepare_row(row: dict[str, Any], *, table_name: str, dialect_name: str) -> dict[str, Any]:
     if table_name == "documents" and dialect_name == "postgresql":
         row["metadata_json"] = Jsonb(_decode_metadata_json(row["metadata_json"]))
+
+    if table_name == "research_sessions" and dialect_name == "postgresql":
+        row["metadata_json"] = Jsonb(_decode_metadata_json(row["metadata_json"]))
+
+    if table_name == "query_runs" and dialect_name == "postgresql":
+        row["planned_query_json"] = Jsonb(_decode_metadata_json(row["planned_query_json"]))
+        row["retrieval_metadata_json"] = Jsonb(
+            _decode_metadata_json(row["retrieval_metadata_json"])
+        )
 
     if table_name == "sources" and dialect_name == "postgresql":
         row["enabled"] = bool(row["enabled"])
