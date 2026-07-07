@@ -7,10 +7,17 @@ from signalforge.storage import (
     DocumentRecord,
     GenericDocumentChunk,
     SourceRecord,
+    complete_query_run,
     complete_source_ingestion_run,
     connect_database,
+    create_query_run,
     create_source_ingestion_run,
+    fail_query_run,
+    get_or_create_research_session,
     initialize_database,
+    list_query_runs,
+    load_query_run,
+    load_research_session,
     replace_document_chunks,
     load_document_chunks_for_vector_index,
     record_document_chunk_embeddings,
@@ -253,6 +260,132 @@ def test_source_ingestion_run_tracks_completion_counts(tmp_path):
     assert run["inserted_count"] == 3
     assert run["skipped_count"] == 2
     assert run["error_message"] == "one document failed"
+
+
+def test_query_run_lifecycle_persists_completed_history(tmp_path):
+    with connect_database(tmp_path / "signalforge.sqlite3") as connection:
+        initialize_database(connection)
+        session_id = get_or_create_research_session(
+            connection,
+            session_key="local-session",
+            title="NVDA research",
+            metadata={"ticker": "NVDA"},
+        )
+        same_session_id = get_or_create_research_session(
+            connection,
+            session_key="local-session",
+            title="Updated title",
+            metadata={"ticker": "NVDA", "workflow": "research"},
+        )
+        run_id = create_query_run(
+            connection,
+            research_session_id=session_id,
+            question="What changed in NVDA risk factors?",
+            planner_model="planner-v1",
+            answer_model="answer-v1",
+            embedding_model="embedding-v1",
+            vector_collection="collection-v1",
+        )
+        complete_query_run(
+            connection,
+            run_id=run_id,
+            answer_text="Risk factors changed.",
+            planned_query={"semantic_queries": ["NVDA risk factors"], "top_k": 8},
+            retrieval_metadata={
+                "sources": [{"label": "[1]", "score": 0.81, "ticker": "NVDA"}],
+                "warnings": [],
+            },
+        )
+
+        session_record = load_research_session(connection, session_id)
+        loaded = load_query_run(connection, run_id)
+        runs = list_query_runs(connection, research_session_id=session_id)
+
+    assert same_session_id == session_id
+    assert session_record is not None
+    assert session_record.title == "Updated title"
+    assert session_record.metadata == {"ticker": "NVDA", "workflow": "research"}
+    assert loaded is not None
+    assert loaded.id == run_id
+    assert loaded.research_session_id == session_id
+    assert loaded.question == "What changed in NVDA risk factors?"
+    assert loaded.status == "completed"
+    assert loaded.answer_text == "Risk factors changed."
+    assert loaded.error_message is None
+    assert loaded.planner_model == "planner-v1"
+    assert loaded.answer_model == "answer-v1"
+    assert loaded.embedding_model == "embedding-v1"
+    assert loaded.vector_collection == "collection-v1"
+    assert loaded.planned_query == {"semantic_queries": ["NVDA risk factors"], "top_k": 8}
+    assert loaded.retrieval_metadata == {
+        "sources": [{"label": "[1]", "score": 0.81, "ticker": "NVDA"}],
+        "warnings": [],
+    }
+    assert loaded.started_at is not None
+    assert loaded.completed_at is not None
+    assert [run.id for run in runs] == [run_id]
+
+
+def test_query_run_lifecycle_persists_failed_history_and_lists_recent_first(tmp_path):
+    with connect_database(tmp_path / "signalforge.sqlite3") as connection:
+        initialize_database(connection)
+        session_id = get_or_create_research_session(
+            connection,
+            session_key="local-session",
+        )
+        completed_run_id = create_query_run(
+            connection,
+            research_session_id=session_id,
+            question="Completed question",
+        )
+        complete_query_run(
+            connection,
+            run_id=completed_run_id,
+            answer_text="Completed answer",
+        )
+        failed_run_id = create_query_run(
+            connection,
+            research_session_id=session_id,
+            question="Failed question",
+            embedding_model="embedding-v1",
+            vector_collection="collection-v1",
+        )
+        fail_query_run(
+            connection,
+            run_id=failed_run_id,
+            error_message="RAG query failed: RuntimeError",
+            retrieval_metadata={"warnings": ["failed before retrieval"]},
+            planner_model="planner-v1",
+            answer_model="answer-v1",
+        )
+
+        failed = load_query_run(connection, failed_run_id)
+        all_runs = list_query_runs(connection, limit=10)
+        limited_runs = list_query_runs(connection, limit=1)
+
+    assert failed is not None
+    assert failed.status == "failed"
+    assert failed.answer_text is None
+    assert failed.error_message == "RAG query failed: RuntimeError"
+    assert failed.planner_model == "planner-v1"
+    assert failed.answer_model == "answer-v1"
+    assert failed.embedding_model == "embedding-v1"
+    assert failed.vector_collection == "collection-v1"
+    assert failed.retrieval_metadata == {"warnings": ["failed before retrieval"]}
+    assert [run.id for run in all_runs] == [failed_run_id, completed_run_id]
+    assert [run.id for run in limited_runs] == [failed_run_id]
+
+
+def test_query_run_helpers_validate_missing_records_and_limits(tmp_path):
+    with connect_database(tmp_path / "signalforge.sqlite3") as connection:
+        initialize_database(connection)
+
+        assert load_research_session(connection, 404) is None
+        assert load_query_run(connection, 404) is None
+        with pytest.raises(RuntimeError, match="Failed to load query run"):
+            complete_query_run(connection, run_id=404, answer_text="Answer")
+        with pytest.raises(ValueError, match="limit must be greater than zero"):
+            list_query_runs(connection, limit=0)
 
 
 def test_generic_model_rejects_unsupported_values(tmp_path):

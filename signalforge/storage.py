@@ -20,6 +20,8 @@ from signalforge.models import (
     DocumentChunkEmbedding,
     EmbeddingRun,
     Filing,
+    QueryRun,
+    ResearchSession,
     Source,
     SourceIngestionRun,
 )
@@ -46,6 +48,7 @@ DOCUMENT_TYPES = {
     "webpage",
 }
 SOURCE_INGESTION_STATUSES = {"running", "completed", "failed", "partial"}
+QUERY_RUN_STATUSES = {"running", "completed", "failed"}
 
 
 @dataclass(frozen=True)
@@ -102,6 +105,36 @@ class DocumentRecord:
 class GenericDocumentChunk:
     chunk_index: int
     text: str
+
+
+@dataclass(frozen=True)
+class ResearchSessionRecord:
+    id: int
+    session_key: str
+    title: str | None
+    metadata: dict[str, Any]
+    created_at: datetime | str
+    updated_at: datetime | str
+
+
+@dataclass(frozen=True)
+class QueryRunRecord:
+    id: int
+    research_session_id: int | None
+    question: str
+    status: str
+    planner_model: str | None
+    answer_model: str | None
+    embedding_model: str | None
+    vector_collection: str | None
+    planned_query: dict[str, Any]
+    retrieval_metadata: dict[str, Any]
+    answer_text: str | None
+    error_message: str | None
+    started_at: datetime | str
+    completed_at: datetime | str | None
+    created_at: datetime | str
+    updated_at: datetime | str
 
 
 class StorageConnection:
@@ -488,6 +521,159 @@ def complete_source_ingestion_run(
     run.skipped_count = skipped_count
     run.error_message = error_message
     session.commit()
+
+
+def get_or_create_research_session(
+    connection: StorageConnection,
+    *,
+    session_key: str,
+    title: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> int:
+    session = connection._require_session()
+    record = session.execute(
+        select(ResearchSession).where(ResearchSession.session_key == session_key)
+    ).scalar_one_or_none()
+    if record is None:
+        record = ResearchSession(
+            session_key=session_key,
+            title=title,
+            metadata_json=metadata or {},
+        )
+        session.add(record)
+    else:
+        should_update = False
+        if title is not None and record.title != title:
+            record.title = title
+            should_update = True
+        if metadata is not None and record.metadata_json != metadata:
+            record.metadata_json = metadata
+            should_update = True
+        if should_update:
+            record.updated_at = _utc_now_datetime()
+    session.commit()
+    return int(record.id)
+
+
+def create_query_run(
+    connection: StorageConnection,
+    *,
+    question: str,
+    research_session_id: int | None = None,
+    planner_model: str | None = None,
+    answer_model: str | None = None,
+    embedding_model: str | None = None,
+    vector_collection: str | None = None,
+    planned_query: dict[str, Any] | None = None,
+    retrieval_metadata: dict[str, Any] | None = None,
+) -> int:
+    session = connection._require_session()
+    run = QueryRun(
+        research_session_id=research_session_id,
+        question=question,
+        status="running",
+        planner_model=planner_model,
+        answer_model=answer_model,
+        embedding_model=embedding_model,
+        vector_collection=vector_collection,
+        planned_query_json=planned_query or {},
+        retrieval_metadata_json=retrieval_metadata or {},
+        started_at=_utc_now_datetime(),
+    )
+    session.add(run)
+    session.commit()
+    return int(run.id)
+
+
+def complete_query_run(
+    connection: StorageConnection,
+    *,
+    run_id: int,
+    answer_text: str,
+    planned_query: dict[str, Any] | None = None,
+    retrieval_metadata: dict[str, Any] | None = None,
+    planner_model: str | None = None,
+    answer_model: str | None = None,
+    embedding_model: str | None = None,
+    vector_collection: str | None = None,
+) -> None:
+    _finish_query_run(
+        connection,
+        run_id=run_id,
+        status="completed",
+        answer_text=answer_text,
+        error_message=None,
+        planned_query=planned_query,
+        retrieval_metadata=retrieval_metadata,
+        planner_model=planner_model,
+        answer_model=answer_model,
+        embedding_model=embedding_model,
+        vector_collection=vector_collection,
+    )
+
+
+def fail_query_run(
+    connection: StorageConnection,
+    *,
+    run_id: int,
+    error_message: str,
+    planned_query: dict[str, Any] | None = None,
+    retrieval_metadata: dict[str, Any] | None = None,
+    planner_model: str | None = None,
+    answer_model: str | None = None,
+    embedding_model: str | None = None,
+    vector_collection: str | None = None,
+) -> None:
+    _finish_query_run(
+        connection,
+        run_id=run_id,
+        status="failed",
+        answer_text=None,
+        error_message=error_message,
+        planned_query=planned_query,
+        retrieval_metadata=retrieval_metadata,
+        planner_model=planner_model,
+        answer_model=answer_model,
+        embedding_model=embedding_model,
+        vector_collection=vector_collection,
+    )
+
+
+def list_query_runs(
+    connection: StorageConnection,
+    *,
+    research_session_id: int | None = None,
+    limit: int = 50,
+) -> list[QueryRunRecord]:
+    if limit < 1:
+        raise ValueError("limit must be greater than zero")
+
+    statement = select(QueryRun)
+    if research_session_id is not None:
+        statement = statement.where(QueryRun.research_session_id == research_session_id)
+    statement = statement.order_by(QueryRun.started_at.desc(), QueryRun.id.desc()).limit(limit)
+
+    session = connection._require_session()
+    return [_query_run_record(run) for run in session.execute(statement).scalars()]
+
+
+def load_query_run(connection: StorageConnection, run_id: int) -> QueryRunRecord | None:
+    session = connection._require_session()
+    run = session.get(QueryRun, run_id)
+    if run is None:
+        return None
+    return _query_run_record(run)
+
+
+def load_research_session(
+    connection: StorageConnection,
+    session_id: int,
+) -> ResearchSessionRecord | None:
+    session = connection._require_session()
+    record = session.get(ResearchSession, session_id)
+    if record is None:
+        return None
+    return _research_session_record(record)
 
 
 def upsert_filing(connection: StorageConnection, metadata: FilingMetadata) -> int:
@@ -918,6 +1104,81 @@ def update_embedding_run_progress(
         run.indexed_point_count = indexed_point_count
         run.updated_at = _utc_now_datetime()
         session.commit()
+
+
+def _finish_query_run(
+    connection: StorageConnection,
+    *,
+    run_id: int,
+    status: str,
+    answer_text: str | None,
+    error_message: str | None,
+    planned_query: dict[str, Any] | None,
+    retrieval_metadata: dict[str, Any] | None,
+    planner_model: str | None,
+    answer_model: str | None,
+    embedding_model: str | None,
+    vector_collection: str | None,
+) -> None:
+    if status not in QUERY_RUN_STATUSES - {"running"}:
+        raise ValueError(f"Unsupported completed query run status: {status}")
+
+    session = connection._require_session()
+    run = session.get(QueryRun, run_id)
+    if run is None:
+        raise RuntimeError(f"Failed to load query run: {run_id}")
+
+    now = _utc_now_datetime()
+    run.status = status
+    run.answer_text = answer_text
+    run.error_message = error_message
+    run.completed_at = now
+    run.updated_at = now
+    if planned_query is not None:
+        run.planned_query_json = planned_query
+    if retrieval_metadata is not None:
+        run.retrieval_metadata_json = retrieval_metadata
+    if planner_model is not None:
+        run.planner_model = planner_model
+    if answer_model is not None:
+        run.answer_model = answer_model
+    if embedding_model is not None:
+        run.embedding_model = embedding_model
+    if vector_collection is not None:
+        run.vector_collection = vector_collection
+    session.commit()
+
+
+def _query_run_record(run: QueryRun) -> QueryRunRecord:
+    return QueryRunRecord(
+        id=int(run.id),
+        research_session_id=run.research_session_id,
+        question=run.question,
+        status=run.status,
+        planner_model=run.planner_model,
+        answer_model=run.answer_model,
+        embedding_model=run.embedding_model,
+        vector_collection=run.vector_collection,
+        planned_query=dict(run.planned_query_json or {}),
+        retrieval_metadata=dict(run.retrieval_metadata_json or {}),
+        answer_text=run.answer_text,
+        error_message=run.error_message,
+        started_at=run.started_at,
+        completed_at=run.completed_at,
+        created_at=run.created_at,
+        updated_at=run.updated_at,
+    )
+
+
+def _research_session_record(record: ResearchSession) -> ResearchSessionRecord:
+    return ResearchSessionRecord(
+        id=int(record.id),
+        session_key=record.session_key,
+        title=record.title,
+        metadata=dict(record.metadata_json or {}),
+        created_at=record.created_at,
+        updated_at=record.updated_at,
+    )
 
 
 def _validate_source(source: SourceRecord) -> None:
