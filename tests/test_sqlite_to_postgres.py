@@ -31,6 +31,8 @@ from signalforge.storage import (
 
 
 SIGNALFORGE_TABLES = (
+    "query_runs",
+    "research_sessions",
     "source_ingestion_runs",
     "document_chunk_embeddings",
     "document_chunks",
@@ -76,7 +78,7 @@ def test_migrate_sqlite_to_postgres_dry_run_counts_source_rows(tmp_path):
 
     assert result.dry_run is True
     assert result.target_total is None
-    assert result.source_total == 14
+    assert result.source_total == 16
     assert {table.table_name: table.source_count for table in result.tables} == {
         "companies": 1,
         "filings": 1,
@@ -88,6 +90,8 @@ def test_migrate_sqlite_to_postgres_dry_run_counts_source_rows(tmp_path):
         "document_chunk_embeddings": 2,
         "embedding_runs": 1,
         "source_ingestion_runs": 1,
+        "research_sessions": 1,
+        "query_runs": 1,
     }
 
 
@@ -103,16 +107,20 @@ def test_migrate_sqlite_to_postgres_executes_and_preserves_ids_and_counts(tmp_pa
     )
 
     assert result.dry_run is False
-    assert result.source_total == result.target_total == 14
+    assert result.source_total == result.target_total == 16
 
     with connect_database(target_path) as connection:
         company = connection.execute("SELECT * FROM companies").fetchone()
         document = connection.execute("SELECT * FROM documents").fetchone()
+        query_run = connection.execute("SELECT * FROM query_runs").fetchone()
         chunks = connection.execute("SELECT * FROM chunks ORDER BY id").fetchall()
 
     assert company["id"] == 1
     assert document["id"] == 1
     assert json.loads(document["metadata_json"]) == {"tags": ["ai"], "ticker": "NVDA"}
+    assert json.loads(query_run["planned_query_json"]) == {
+        "semantic_queries": ["NVDA risk factors"]
+    }
     assert [chunk["id"] for chunk in chunks] == [1, 2]
 
 
@@ -137,7 +145,7 @@ def test_migrate_sqlite_to_postgres_requires_empty_target_unless_replace(tmp_pat
     )
 
     assert result.replaced is True
-    assert result.target_total == 14
+    assert result.target_total == 16
 
 
 @pytest.mark.postgres
@@ -156,12 +164,14 @@ def test_migrate_sqlite_to_postgres_sets_postgres_jsonb_and_sequences(
 
     with connect_database(postgres_database_url) as connection:
         document = connection.execute("SELECT * FROM documents").fetchone()
+        query_run = connection.execute("SELECT * FROM query_runs").fetchone()
         company_id = upsert_company(
             connection,
             CompanyRecord(ticker="AMD", name="Advanced Micro Devices"),
         )
 
     assert document["metadata_json"] == {"tags": ["ai"], "ticker": "NVDA"}
+    assert query_run["planned_query_json"] == {"semantic_queries": ["NVDA risk factors"]}
     assert company_id == 2
 
 
@@ -270,3 +280,52 @@ def create_sample_sqlite_database(path):
             discovered_count=1,
             inserted_count=1,
         )
+        connection.execute(
+            """
+            INSERT INTO research_sessions (
+                session_key,
+                title,
+                metadata_json
+            )
+            VALUES (?, ?, ?)
+            """,
+            (
+                "session-1",
+                "NVDA research",
+                json.dumps({"ticker": "NVDA"}, sort_keys=True),
+            ),
+        )
+        connection.execute(
+            """
+            INSERT INTO query_runs (
+                research_session_id,
+                question,
+                status,
+                planner_model,
+                answer_model,
+                embedding_model,
+                vector_collection,
+                planned_query_json,
+                retrieval_metadata_json,
+                answer_text,
+                started_at,
+                completed_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                1,
+                "What changed in NVDA risk factors?",
+                "completed",
+                "planner",
+                "answer",
+                "test-model",
+                "test-collection",
+                json.dumps({"semantic_queries": ["NVDA risk factors"]}, sort_keys=True),
+                json.dumps({"chunks": [1, 2]}, sort_keys=True),
+                "Answer",
+                "2026-07-06T00:00:00+00:00",
+                "2026-07-06T00:00:00+00:00",
+            ),
+        )
+        connection.commit()

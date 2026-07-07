@@ -1,5 +1,3 @@
-import json
-import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -7,12 +5,24 @@ from types import TracebackType
 from typing import Any, Iterable
 from urllib.parse import unquote, urlparse
 
-from psycopg.types.json import Jsonb
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.orm import Session, sessionmaker
 
 from signalforge.config import sqlalchemy_database_url
 from signalforge.migrations import upgrade_database
+from signalforge.models import (
+    Chunk,
+    ChunkEmbedding,
+    Company,
+    Document,
+    DocumentChunk,
+    DocumentChunkEmbedding,
+    EmbeddingRun,
+    Filing,
+    Source,
+    SourceIngestionRun,
+)
 from signalforge.sections import TextChunk
 
 SOURCE_TYPES = {
@@ -99,27 +109,28 @@ class StorageConnection:
         self,
         *,
         target: str,
-        sqlite_connection: sqlite3.Connection | None = None,
         sqlalchemy_engine: Engine | None = None,
     ) -> None:
         self.target = target
-        self._sqlite_connection = sqlite_connection
-        self._sqlalchemy_engine = sqlalchemy_engine
+        self._sqlalchemy_engine = sqlalchemy_engine or create_engine(
+            sqlalchemy_database_url(target),
+            future=True,
+        )
         self._sqlalchemy_connection: Connection | None = None
+        self._session_factory = sessionmaker(future=True)
+        self.session: Session | None = None
 
     @property
     def dialect_name(self) -> str:
-        if self._sqlite_connection is not None:
-            return "sqlite"
         if self._sqlalchemy_connection is not None:
             return self._sqlalchemy_connection.dialect.name
-        if self._sqlalchemy_engine is not None:
-            return self._sqlalchemy_engine.dialect.name
-        raise RuntimeError("Storage connection is not open")
+        return self._sqlalchemy_engine.dialect.name
 
     def __enter__(self) -> "StorageConnection":
-        if self._sqlalchemy_engine is not None and self._sqlalchemy_connection is None:
+        if self._sqlalchemy_connection is None:
             self._sqlalchemy_connection = self._sqlalchemy_engine.connect()
+        if self.session is None:
+            self.session = self._session_factory(bind=self._sqlalchemy_connection)
         return self
 
     def __exit__(
@@ -133,58 +144,47 @@ class StorageConnection:
         self.close()
 
     def execute(self, query: str, parameters: Iterable[Any] | dict[str, Any] = ()):
-        if self._sqlite_connection is not None:
-            return self._sqlite_connection.execute(query, parameters)
-
-        connection = self._require_sqlalchemy_connection()
+        session = self._require_session()
         statement, bound_parameters = _sqlalchemy_statement(query, parameters)
-        return connection.execute(text(statement), bound_parameters).mappings()
+        return session.execute(text(statement), bound_parameters).mappings()
 
     def executemany(self, query: str, parameters: Iterable[Iterable[Any] | dict[str, Any]]):
-        if self._sqlite_connection is not None:
-            return self._sqlite_connection.executemany(query, parameters)
-
         rows = list(parameters)
         if not rows:
             return None
 
         statement, bound_parameters = _sqlalchemy_many_statement(query, rows)
-        return self._require_sqlalchemy_connection().execute(text(statement), bound_parameters)
+        return self._require_session().execute(text(statement), bound_parameters)
 
     def executescript(self, script: str):
-        if self._sqlite_connection is None:
-            raise NotImplementedError("executescript is only used by the SQLite compatibility path")
-        return self._sqlite_connection.executescript(script)
+        raise NotImplementedError("executescript is not supported by SQLAlchemy storage")
 
     def commit(self) -> None:
-        if self._sqlite_connection is not None:
-            self._sqlite_connection.commit()
-            return
-        self._require_sqlalchemy_connection().commit()
+        self._require_session().commit()
 
     def rollback(self) -> None:
-        if self._sqlite_connection is not None:
-            self._sqlite_connection.rollback()
-            return
-        if self._sqlalchemy_connection is not None:
-            self._sqlalchemy_connection.rollback()
+        if self.session is not None:
+            self.session.rollback()
 
     def close(self) -> None:
-        if self._sqlite_connection is not None:
-            self._sqlite_connection.close()
-            return
+        if self.session is not None:
+            self.session.close()
+            self.session = None
         if self._sqlalchemy_connection is not None:
             self._sqlalchemy_connection.close()
             self._sqlalchemy_connection = None
-        if self._sqlalchemy_engine is not None:
-            self._sqlalchemy_engine.dispose()
+        self._sqlalchemy_engine.dispose()
 
     def _require_sqlalchemy_connection(self) -> Connection:
         if self._sqlalchemy_connection is None:
-            if self._sqlalchemy_engine is None:
-                raise RuntimeError("Storage connection is not open")
             self._sqlalchemy_connection = self._sqlalchemy_engine.connect()
         return self._sqlalchemy_connection
+
+    def _require_session(self) -> Session:
+        if self.session is None:
+            self._require_sqlalchemy_connection()
+            self.session = self._session_factory(bind=self._sqlalchemy_connection)
+        return self.session
 
 
 def connect_database(path: str | Path) -> StorageConnection:
@@ -194,12 +194,9 @@ def connect_database(path: str | Path) -> StorageConnection:
     if parsed.scheme in {"", "file", "sqlite"}:
         db_path = _sqlite_path_from_target(target)
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        connection = sqlite3.connect(db_path)
-        connection.row_factory = sqlite3.Row
-        return StorageConnection(target=str(db_path), sqlite_connection=connection)
+        return StorageConnection(target=str(db_path))
 
-    engine = create_engine(sqlalchemy_database_url(target), future=True)
-    return StorageConnection(target=target, sqlalchemy_engine=engine)
+    return StorageConnection(target=target)
 
 
 def _sqlite_path_from_target(target: str | Path) -> Path:
@@ -223,206 +220,7 @@ def _sqlite_path_from_target(target: str | Path) -> Path:
 
 
 def initialize_database(connection: StorageConnection) -> None:
-    if connection.dialect_name != "sqlite":
-        upgrade_database(connection.target)
-        return
-
-    migration_target = _migration_target_for_empty_database(connection)
-    if migration_target is not None:
-        upgrade_database(migration_target)
-        return
-
-    connection.executescript(
-        """
-        PRAGMA foreign_keys = ON;
-
-        CREATE TABLE IF NOT EXISTS filings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            accession_number TEXT NOT NULL UNIQUE,
-            ticker TEXT NOT NULL,
-            cik TEXT,
-            company_name TEXT,
-            form_type TEXT NOT NULL,
-            filing_date TEXT,
-            period_of_report TEXT,
-            raw_path TEXT NOT NULL,
-            raw_sha256 TEXT NOT NULL,
-            clean_text_path TEXT NOT NULL,
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS chunks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            filing_id INTEGER NOT NULL,
-            section_id TEXT NOT NULL,
-            section_title TEXT NOT NULL,
-            chunk_index INTEGER NOT NULL,
-            text TEXT NOT NULL,
-            char_count INTEGER NOT NULL,
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (filing_id) REFERENCES filings(id) ON DELETE CASCADE,
-            UNIQUE (filing_id, section_id, chunk_index)
-        );
-
-        CREATE TABLE IF NOT EXISTS chunk_embeddings (
-            chunk_id INTEGER NOT NULL,
-            embedding_model TEXT NOT NULL,
-            vector_collection TEXT NOT NULL,
-            vector_id TEXT NOT NULL,
-            embedded_at TEXT NOT NULL,
-            PRIMARY KEY (chunk_id, embedding_model, vector_collection),
-            FOREIGN KEY (chunk_id) REFERENCES chunks(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS document_chunk_embeddings (
-            document_chunk_id INTEGER NOT NULL,
-            embedding_model TEXT NOT NULL,
-            vector_collection TEXT NOT NULL,
-            vector_id TEXT NOT NULL,
-            embedded_at TEXT NOT NULL,
-            PRIMARY KEY (document_chunk_id, embedding_model, vector_collection),
-            FOREIGN KEY (document_chunk_id) REFERENCES document_chunks(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS embedding_runs (
-            filing_id INTEGER NOT NULL,
-            embedding_model TEXT NOT NULL,
-            vector_collection TEXT NOT NULL,
-            status TEXT NOT NULL CHECK (
-                status IN ('pending', 'indexing', 'ready', 'failed')
-            ),
-            expected_point_count INTEGER NOT NULL DEFAULT 0,
-            indexed_point_count INTEGER NOT NULL DEFAULT 0,
-            error_message TEXT,
-            started_at TEXT,
-            completed_at TEXT,
-            updated_at TEXT NOT NULL,
-            PRIMARY KEY (filing_id, embedding_model, vector_collection),
-            FOREIGN KEY (filing_id) REFERENCES filings(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS companies (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ticker TEXT NOT NULL UNIQUE,
-            name TEXT,
-            cik TEXT,
-            website_domain TEXT,
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS sources (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            company_id INTEGER,
-            name TEXT NOT NULL,
-            url TEXT NOT NULL UNIQUE,
-            source_type TEXT NOT NULL CHECK (
-                source_type IN (
-                    'company_blog',
-                    'newsroom',
-                    'investor_relations',
-                    'industry_blog',
-                    'news_feed',
-                    'sec',
-                    'webpage'
-                )
-            ),
-            ownership TEXT NOT NULL CHECK (
-                ownership IN ('official', 'third_party', 'unknown')
-            ),
-            trust_level TEXT NOT NULL CHECK (
-                trust_level IN ('high', 'medium', 'low')
-            ),
-            discovery_status TEXT NOT NULL CHECK (
-                discovery_status IN ('candidate', 'approved', 'rejected', 'manual')
-            ),
-            enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
-            confidence_score REAL CHECK (
-                confidence_score IS NULL
-                OR (confidence_score >= 0.0 AND confidence_score <= 1.0)
-            ),
-            discovery_reason TEXT,
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_sources_company_id
-            ON sources(company_id);
-        CREATE INDEX IF NOT EXISTS idx_sources_discovery_status
-            ON sources(discovery_status);
-
-        CREATE TABLE IF NOT EXISTS documents (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            source_id INTEGER NOT NULL,
-            url TEXT NOT NULL,
-            title TEXT,
-            author TEXT,
-            published_at TEXT,
-            fetched_at TEXT NOT NULL,
-            clean_text_path TEXT,
-            content_hash TEXT NOT NULL,
-            document_type TEXT NOT NULL CHECK (
-                document_type IN (
-                    'article',
-                    'blog_post',
-                    'press_release',
-                    'investor_update',
-                    'filing',
-                    'webpage'
-                )
-            ),
-            metadata_json TEXT NOT NULL DEFAULT '{}',
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (source_id) REFERENCES sources(id) ON DELETE CASCADE,
-            UNIQUE (source_id, url)
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_documents_source_id
-            ON documents(source_id);
-        CREATE INDEX IF NOT EXISTS idx_documents_content_hash
-            ON documents(content_hash);
-
-        CREATE TABLE IF NOT EXISTS document_chunks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            document_id INTEGER NOT NULL,
-            chunk_index INTEGER NOT NULL,
-            text TEXT NOT NULL,
-            char_count INTEGER NOT NULL,
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
-            UNIQUE (document_id, chunk_index)
-        );
-
-        CREATE TABLE IF NOT EXISTS source_ingestion_runs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            source_id INTEGER NOT NULL,
-            status TEXT NOT NULL CHECK (
-                status IN ('running', 'completed', 'failed', 'partial')
-            ),
-            started_at TEXT NOT NULL,
-            completed_at TEXT,
-            discovered_count INTEGER NOT NULL DEFAULT 0,
-            inserted_count INTEGER NOT NULL DEFAULT 0,
-            skipped_count INTEGER NOT NULL DEFAULT 0,
-            error_message TEXT,
-            FOREIGN KEY (source_id) REFERENCES sources(id) ON DELETE CASCADE
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_source_ingestion_runs_source_id
-            ON source_ingestion_runs(source_id);
-        """
-    )
-    filing_columns = {
-        row["name"] for row in connection.execute("PRAGMA table_info(filings)").fetchall()
-    }
-    if "raw_sha256" not in filing_columns:
-        connection.execute("ALTER TABLE filings ADD COLUMN raw_sha256 TEXT")
-    connection.commit()
+    upgrade_database(connection.target)
 
 
 def _migration_target_for_empty_database(connection: StorageConnection) -> str | None:
@@ -447,34 +245,22 @@ def _migration_target_for_empty_database(connection: StorageConnection) -> str |
     return database_path
 
 
-def upsert_company(connection: sqlite3.Connection, company: CompanyRecord) -> int:
+def upsert_company(connection: StorageConnection, company: CompanyRecord) -> int:
+    session = connection._require_session()
     ticker = company.ticker.upper()
-    connection.execute(
-        """
-        INSERT INTO companies (
-            ticker,
-            name,
-            cik,
-            website_domain
-        )
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT(ticker) DO UPDATE SET
-            name = excluded.name,
-            cik = excluded.cik,
-            website_domain = excluded.website_domain,
-            updated_at = CURRENT_TIMESTAMP
-        """,
-        (ticker, company.name, company.cik, company.website_domain),
-    )
-    connection.commit()
-
-    row = connection.execute("SELECT id FROM companies WHERE ticker = ?", (ticker,)).fetchone()
-    if row is None:
-        raise RuntimeError(f"Failed to load company after upsert: {ticker}")
-    return int(row["id"])
+    record = session.execute(select(Company).where(Company.ticker == ticker)).scalar_one_or_none()
+    if record is None:
+        record = Company(ticker=ticker)
+        session.add(record)
+    record.name = company.name
+    record.cik = company.cik
+    record.website_domain = company.website_domain
+    record.updated_at = _utc_now_datetime()
+    session.commit()
+    return int(record.id)
 
 
-def load_company_by_ticker(connection: sqlite3.Connection, ticker: str) -> sqlite3.Row | None:
+def load_company_by_ticker(connection: StorageConnection, ticker: str) -> Any | None:
     return connection.execute(
         """
         SELECT *
@@ -486,9 +272,9 @@ def load_company_by_ticker(connection: sqlite3.Connection, ticker: str) -> sqlit
 
 
 def load_latest_filing_company_metadata(
-    connection: sqlite3.Connection,
+    connection: StorageConnection,
     ticker: str,
-) -> sqlite3.Row | None:
+) -> Any | None:
     return connection.execute(
         """
         SELECT ticker, company_name, cik
@@ -501,63 +287,34 @@ def load_latest_filing_company_metadata(
     ).fetchone()
 
 
-def upsert_source(connection: sqlite3.Connection, source: SourceRecord) -> int:
+def upsert_source(connection: StorageConnection, source: SourceRecord) -> int:
     _validate_source(source)
-    connection.execute(
-        """
-        INSERT INTO sources (
-            company_id,
-            name,
-            url,
-            source_type,
-            ownership,
-            trust_level,
-            discovery_status,
-            enabled,
-            confidence_score,
-            discovery_reason
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(url) DO UPDATE SET
-            company_id = excluded.company_id,
-            name = excluded.name,
-            source_type = excluded.source_type,
-            ownership = excluded.ownership,
-            trust_level = excluded.trust_level,
-            discovery_status = excluded.discovery_status,
-            enabled = excluded.enabled,
-            confidence_score = excluded.confidence_score,
-            discovery_reason = excluded.discovery_reason,
-            updated_at = CURRENT_TIMESTAMP
-        """,
-        (
-            source.company_id,
-            source.name,
-            source.url,
-            source.source_type,
-            source.ownership,
-            source.trust_level,
-            source.discovery_status,
-            source.enabled,
-            source.confidence_score,
-            source.discovery_reason,
-        ),
-    )
-    connection.commit()
-
-    row = connection.execute("SELECT id FROM sources WHERE url = ?", (source.url,)).fetchone()
-    if row is None:
-        raise RuntimeError(f"Failed to load source after upsert: {source.url}")
-    return int(row["id"])
+    session = connection._require_session()
+    record = session.execute(select(Source).where(Source.url == source.url)).scalar_one_or_none()
+    if record is None:
+        record = Source(url=source.url)
+        session.add(record)
+    record.company_id = source.company_id
+    record.name = source.name
+    record.source_type = source.source_type
+    record.ownership = source.ownership
+    record.trust_level = source.trust_level
+    record.discovery_status = source.discovery_status
+    record.enabled = source.enabled
+    record.confidence_score = source.confidence_score
+    record.discovery_reason = source.discovery_reason
+    record.updated_at = _utc_now_datetime()
+    session.commit()
+    return int(record.id)
 
 
 def list_sources(
-    connection: sqlite3.Connection,
+    connection: StorageConnection,
     *,
     ticker: str | None = None,
     discovery_status: str | None = None,
     enabled: bool | None = None,
-) -> list[sqlite3.Row]:
+) -> list[Any]:
     if discovery_status is not None:
         _validate_choice("discovery_status", discovery_status, SOURCE_DISCOVERY_STATUSES)
 
@@ -611,7 +368,7 @@ def list_sources(
     return connection.execute(query, parameters).fetchall()
 
 
-def load_source(connection: sqlite3.Connection, source_id: int) -> sqlite3.Row | None:
+def load_source(connection: StorageConnection, source_id: int) -> Any | None:
     return connection.execute(
         """
         SELECT
@@ -626,148 +383,89 @@ def load_source(connection: sqlite3.Connection, source_id: int) -> sqlite3.Row |
     ).fetchone()
 
 
-def approve_source(connection: sqlite3.Connection, source_id: int) -> sqlite3.Row | None:
-    connection.execute(
-        """
-        UPDATE sources
-        SET
-            discovery_status = 'approved',
-            enabled = TRUE,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-        """,
-        (source_id,),
-    )
-    connection.commit()
+def approve_source(connection: StorageConnection, source_id: int) -> Any | None:
+    session = connection._require_session()
+    source = session.get(Source, source_id)
+    if source is not None:
+        source.discovery_status = "approved"
+        source.enabled = True
+        source.updated_at = _utc_now_datetime()
+        session.commit()
     return load_source(connection, source_id)
 
 
-def reject_source(connection: sqlite3.Connection, source_id: int) -> sqlite3.Row | None:
-    connection.execute(
-        """
-        UPDATE sources
-        SET
-            discovery_status = 'rejected',
-            enabled = FALSE,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-        """,
-        (source_id,),
-    )
-    connection.commit()
+def reject_source(connection: StorageConnection, source_id: int) -> Any | None:
+    session = connection._require_session()
+    source = session.get(Source, source_id)
+    if source is not None:
+        source.discovery_status = "rejected"
+        source.enabled = False
+        source.updated_at = _utc_now_datetime()
+        session.commit()
     return load_source(connection, source_id)
 
 
-def upsert_document(connection: sqlite3.Connection, document: DocumentRecord) -> int:
+def upsert_document(connection: StorageConnection, document: DocumentRecord) -> int:
     _validate_document(document)
-    fetched_at = document.fetched_at or _utc_now()
+    fetched_at = _coerce_datetime(document.fetched_at) or _utc_now_datetime()
     metadata = document.metadata or {}
-    metadata_value = json.dumps(metadata, sort_keys=True)
-    if connection.dialect_name == "postgresql":
-        metadata_value = Jsonb(metadata)
-
-    connection.execute(
-        """
-        INSERT INTO documents (
-            source_id,
-            url,
-            title,
-            author,
-            published_at,
-            fetched_at,
-            clean_text_path,
-            content_hash,
-            document_type,
-            metadata_json
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(source_id, url) DO UPDATE SET
-            title = excluded.title,
-            author = excluded.author,
-            published_at = excluded.published_at,
-            fetched_at = excluded.fetched_at,
-            clean_text_path = excluded.clean_text_path,
-            content_hash = excluded.content_hash,
-            document_type = excluded.document_type,
-            metadata_json = excluded.metadata_json,
-            updated_at = CURRENT_TIMESTAMP
-        """,
-        (
-            document.source_id,
-            document.url,
-            document.title,
-            document.author,
-            document.published_at,
-            fetched_at,
-            document.clean_text_path,
-            document.content_hash,
-            document.document_type,
-            metadata_value,
-        ),
-    )
-    connection.commit()
-
-    row = connection.execute(
-        "SELECT id FROM documents WHERE source_id = ? AND url = ?",
-        (document.source_id, document.url),
-    ).fetchone()
-    if row is None:
-        raise RuntimeError(f"Failed to load document after upsert: {document.url}")
-    return int(row["id"])
+    session = connection._require_session()
+    record = session.execute(
+        select(Document).where(Document.source_id == document.source_id, Document.url == document.url)
+    ).scalar_one_or_none()
+    if record is None:
+        record = Document(source_id=document.source_id, url=document.url)
+        session.add(record)
+    record.title = document.title
+    record.author = document.author
+    record.published_at = document.published_at
+    record.fetched_at = fetched_at
+    record.clean_text_path = document.clean_text_path
+    record.content_hash = document.content_hash
+    record.document_type = document.document_type
+    record.metadata_json = metadata
+    record.updated_at = _utc_now_datetime()
+    session.commit()
+    return int(record.id)
 
 
 def replace_document_chunks(
-    connection: sqlite3.Connection,
+    connection: StorageConnection,
     document_id: int,
     chunks: list[GenericDocumentChunk],
 ) -> None:
-    connection.execute("DELETE FROM document_chunks WHERE document_id = ?", (document_id,))
-    connection.executemany(
-        """
-        INSERT INTO document_chunks (
-            document_id,
-            chunk_index,
-            text,
-            char_count
-        )
-        VALUES (?, ?, ?, ?)
-        """,
+    session = connection._require_session()
+    session.query(DocumentChunk).filter(DocumentChunk.document_id == document_id).delete(
+        synchronize_session=False
+    )
+    session.add_all(
         [
-            (
-                document_id,
-                chunk.chunk_index,
-                chunk.text,
-                len(chunk.text),
+            DocumentChunk(
+                document_id=document_id,
+                chunk_index=chunk.chunk_index,
+                text=chunk.text,
+                char_count=len(chunk.text),
             )
             for chunk in chunks
-        ],
+        ]
     )
-    connection.commit()
+    session.commit()
 
 
-def create_source_ingestion_run(connection: sqlite3.Connection, source_id: int) -> int:
-    started_at = _utc_now()
-    cursor = connection.execute(
-        """
-        INSERT INTO source_ingestion_runs (
-            source_id,
-            status,
-            started_at
-        )
-        VALUES (?, 'running', ?)
-        RETURNING id
-        """,
-        (source_id, started_at),
+def create_source_ingestion_run(connection: StorageConnection, source_id: int) -> int:
+    session = connection._require_session()
+    run = SourceIngestionRun(
+        source_id=source_id,
+        status="running",
+        started_at=_utc_now_datetime(),
     )
-    row = cursor.fetchone()
-    if row is None:
-        raise RuntimeError(f"Failed to create source ingestion run for source: {source_id}")
-    connection.commit()
-    return int(row["id"])
+    session.add(run)
+    session.commit()
+    return int(run.id)
 
 
 def complete_source_ingestion_run(
-    connection: sqlite3.Connection,
+    connection: StorageConnection,
     *,
     run_id: int,
     status: str,
@@ -779,137 +477,81 @@ def complete_source_ingestion_run(
     if status not in SOURCE_INGESTION_STATUSES - {"running"}:
         raise ValueError(f"Unsupported completed ingestion status: {status}")
 
-    connection.execute(
-        """
-        UPDATE source_ingestion_runs
-        SET
-            status = ?,
-            completed_at = ?,
-            discovered_count = ?,
-            inserted_count = ?,
-            skipped_count = ?,
-            error_message = ?
-        WHERE id = ?
-        """,
-        (
-            status,
-            _utc_now(),
-            discovered_count,
-            inserted_count,
-            skipped_count,
-            error_message,
-            run_id,
-        ),
-    )
-    connection.commit()
+    session = connection._require_session()
+    run = session.get(SourceIngestionRun, run_id)
+    if run is None:
+        raise RuntimeError(f"Failed to load source ingestion run: {run_id}")
+    run.status = status
+    run.completed_at = _utc_now_datetime()
+    run.discovered_count = discovered_count
+    run.inserted_count = inserted_count
+    run.skipped_count = skipped_count
+    run.error_message = error_message
+    session.commit()
 
 
-def upsert_filing(connection: sqlite3.Connection, metadata: FilingMetadata) -> int:
-    connection.execute(
-        """
-        INSERT INTO filings (
-            accession_number,
-            ticker,
-            cik,
-            company_name,
-            form_type,
-            filing_date,
-            period_of_report,
-            raw_path,
-            raw_sha256,
-            clean_text_path
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(accession_number) DO UPDATE SET
-            ticker = excluded.ticker,
-            cik = excluded.cik,
-            company_name = excluded.company_name,
-            form_type = excluded.form_type,
-            filing_date = excluded.filing_date,
-            period_of_report = excluded.period_of_report,
-            raw_path = excluded.raw_path,
-            raw_sha256 = excluded.raw_sha256,
-            clean_text_path = excluded.clean_text_path,
-            updated_at = CURRENT_TIMESTAMP
-        """,
-        (
-            metadata.accession_number,
-            metadata.ticker,
-            metadata.cik,
-            metadata.company_name,
-            metadata.form_type,
-            metadata.filing_date,
-            metadata.period_of_report,
-            metadata.raw_path,
-            metadata.raw_sha256,
-            metadata.clean_text_path,
-        ),
-    )
-    connection.commit()
-
-    row = connection.execute(
-        "SELECT id FROM filings WHERE accession_number = ?",
-        (metadata.accession_number,),
-    ).fetchone()
-    if row is None:
-        raise RuntimeError(f"Failed to load filing after upsert: {metadata.accession_number}")
-    return int(row["id"])
+def upsert_filing(connection: StorageConnection, metadata: FilingMetadata) -> int:
+    session = connection._require_session()
+    record = session.execute(
+        select(Filing).where(Filing.accession_number == metadata.accession_number)
+    ).scalar_one_or_none()
+    if record is None:
+        record = Filing(accession_number=metadata.accession_number)
+        session.add(record)
+    record.ticker = metadata.ticker
+    record.cik = metadata.cik
+    record.company_name = metadata.company_name
+    record.form_type = metadata.form_type
+    record.filing_date = metadata.filing_date
+    record.period_of_report = metadata.period_of_report
+    record.raw_path = metadata.raw_path
+    record.raw_sha256 = metadata.raw_sha256
+    record.clean_text_path = metadata.clean_text_path
+    record.updated_at = _utc_now_datetime()
+    session.commit()
+    return int(record.id)
 
 
 def replace_filing_chunks(
-    connection: sqlite3.Connection,
+    connection: StorageConnection,
     filing_id: int,
     chunks: list[TextChunk],
 ) -> None:
-    connection.execute("DELETE FROM chunks WHERE filing_id = ?", (filing_id,))
-    connection.executemany(
-        """
-        INSERT INTO chunks (
-            filing_id,
-            section_id,
-            section_title,
-            chunk_index,
-            text,
-            char_count
-        )
-        VALUES (?, ?, ?, ?, ?, ?)
-        """,
+    session = connection._require_session()
+    session.query(Chunk).filter(Chunk.filing_id == filing_id).delete(synchronize_session=False)
+    session.add_all(
         [
-            (
-                filing_id,
-                chunk.section_id,
-                chunk.section_title,
-                chunk.chunk_index,
-                chunk.text,
-                len(chunk.text),
+            Chunk(
+                filing_id=filing_id,
+                section_id=chunk.section_id,
+                section_title=chunk.section_title,
+                chunk_index=chunk.chunk_index,
+                text=chunk.text,
+                char_count=len(chunk.text),
             )
             for chunk in chunks
-        ],
+        ]
     )
-    connection.execute(
-        """
-        UPDATE embedding_runs
-        SET
-            status = 'pending',
-            expected_point_count = ?,
-            indexed_point_count = 0,
-            error_message = NULL,
-            started_at = NULL,
-            completed_at = NULL,
-            updated_at = ?
-        WHERE filing_id = ?
-        """,
-        (len(chunks), _utc_now(), filing_id),
-    )
-    connection.commit()
+    now = _utc_now_datetime()
+    for run in session.execute(
+        select(EmbeddingRun).where(EmbeddingRun.filing_id == filing_id)
+    ).scalars():
+        run.status = "pending"
+        run.expected_point_count = len(chunks)
+        run.indexed_point_count = 0
+        run.error_message = None
+        run.started_at = None
+        run.completed_at = None
+        run.updated_at = now
+    session.commit()
 
 
 def load_chunks_for_vector_index(
-    connection: sqlite3.Connection,
+    connection: StorageConnection,
     *,
     embedding_model: str,
     vector_collection: str,
-) -> list[sqlite3.Row]:
+) -> list[Any]:
     return connection.execute(
         """
         SELECT
@@ -940,11 +582,11 @@ def load_chunks_for_vector_index(
 
 
 def load_document_chunks_for_vector_index(
-    connection: sqlite3.Connection,
+    connection: StorageConnection,
     *,
     embedding_model: str,
     vector_collection: str,
-) -> list[sqlite3.Row]:
+) -> list[Any]:
     return connection.execute(
         """
         SELECT
@@ -983,122 +625,100 @@ def load_document_chunks_for_vector_index(
 
 
 def record_document_chunk_embeddings(
-    connection: sqlite3.Connection,
+    connection: StorageConnection,
     *,
     chunk_vector_ids: list[tuple[int, str]],
     embedding_model: str,
     vector_collection: str,
 ) -> None:
-    embedded_at = datetime.now(UTC).isoformat()
-    connection.executemany(
-        """
-        INSERT INTO document_chunk_embeddings (
-            document_chunk_id,
-            embedding_model,
-            vector_collection,
-            vector_id,
-            embedded_at
+    session = connection._require_session()
+    embedded_at = _utc_now_datetime()
+    for chunk_id, vector_id in chunk_vector_ids:
+        record = session.get(
+            DocumentChunkEmbedding,
+            (chunk_id, embedding_model, vector_collection),
         )
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(document_chunk_id, embedding_model, vector_collection) DO UPDATE SET
-            vector_id = excluded.vector_id,
-            embedded_at = excluded.embedded_at
-        """,
-        [
-            (chunk_id, embedding_model, vector_collection, vector_id, embedded_at)
-            for chunk_id, vector_id in chunk_vector_ids
-        ],
-    )
-    connection.commit()
+        if record is None:
+            record = DocumentChunkEmbedding(
+                document_chunk_id=chunk_id,
+                embedding_model=embedding_model,
+                vector_collection=vector_collection,
+            )
+            session.add(record)
+        record.vector_id = vector_id
+        record.embedded_at = embedded_at
+    session.commit()
 
 
 def record_chunk_embeddings(
-    connection: sqlite3.Connection,
+    connection: StorageConnection,
     *,
     chunk_vector_ids: list[tuple[int, str]],
     embedding_model: str,
     vector_collection: str,
 ) -> None:
-    embedded_at = datetime.now(UTC).isoformat()
-    connection.executemany(
-        """
-        INSERT INTO chunk_embeddings (
-            chunk_id,
-            embedding_model,
-            vector_collection,
-            vector_id,
-            embedded_at
-        )
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(chunk_id, embedding_model, vector_collection) DO UPDATE SET
-            vector_id = excluded.vector_id,
-            embedded_at = excluded.embedded_at
-        """,
-        [
-            (chunk_id, embedding_model, vector_collection, vector_id, embedded_at)
-            for chunk_id, vector_id in chunk_vector_ids
-        ],
-    )
-    connection.commit()
+    session = connection._require_session()
+    embedded_at = _utc_now_datetime()
+    for chunk_id, vector_id in chunk_vector_ids:
+        record = session.get(ChunkEmbedding, (chunk_id, embedding_model, vector_collection))
+        if record is None:
+            record = ChunkEmbedding(
+                chunk_id=chunk_id,
+                embedding_model=embedding_model,
+                vector_collection=vector_collection,
+            )
+            session.add(record)
+        record.vector_id = vector_id
+        record.embedded_at = embedded_at
+    session.commit()
 
 
 def reset_sec_index_metadata(
-    connection: sqlite3.Connection,
+    connection: StorageConnection,
     *,
     embedding_model: str,
     vector_collection: str,
 ) -> None:
-    now = _utc_now()
-    connection.execute(
-        """
-        UPDATE embedding_runs
-        SET
-            status = 'pending',
-            expected_point_count = (
-                SELECT COUNT(*)
-                FROM chunks AS c
-                WHERE c.filing_id = embedding_runs.filing_id
-            ),
-            indexed_point_count = 0,
-            error_message = NULL,
-            started_at = NULL,
-            completed_at = NULL,
-            updated_at = ?
-        WHERE embedding_model = ?
-          AND vector_collection = ?
-        """,
-        (now, embedding_model, vector_collection),
-    )
-    connection.execute(
-        """
-        DELETE FROM chunk_embeddings
-        WHERE embedding_model = ?
-          AND vector_collection = ?
-        """,
-        (embedding_model, vector_collection),
-    )
-    connection.commit()
+    session = connection._require_session()
+    now = _utc_now_datetime()
+    runs = session.execute(
+        select(EmbeddingRun).where(
+            EmbeddingRun.embedding_model == embedding_model,
+            EmbeddingRun.vector_collection == vector_collection,
+        )
+    ).scalars()
+    for run in runs:
+        expected_count = session.query(Chunk).filter(Chunk.filing_id == run.filing_id).count()
+        run.status = "pending"
+        run.expected_point_count = expected_count
+        run.indexed_point_count = 0
+        run.error_message = None
+        run.started_at = None
+        run.completed_at = None
+        run.updated_at = now
+    session.query(ChunkEmbedding).filter(
+        ChunkEmbedding.embedding_model == embedding_model,
+        ChunkEmbedding.vector_collection == vector_collection,
+    ).delete(synchronize_session=False)
+    session.commit()
 
 
 def reset_document_index_metadata(
-    connection: sqlite3.Connection,
+    connection: StorageConnection,
     *,
     embedding_model: str,
     vector_collection: str,
 ) -> None:
-    connection.execute(
-        """
-        DELETE FROM document_chunk_embeddings
-        WHERE embedding_model = ?
-          AND vector_collection = ?
-        """,
-        (embedding_model, vector_collection),
-    )
-    connection.commit()
+    session = connection._require_session()
+    session.query(DocumentChunkEmbedding).filter(
+        DocumentChunkEmbedding.embedding_model == embedding_model,
+        DocumentChunkEmbedding.vector_collection == vector_collection,
+    ).delete(synchronize_session=False)
+    session.commit()
 
 
 def set_embedding_run_status(
-    connection: sqlite3.Connection,
+    connection: StorageConnection,
     *,
     filing_id: int,
     embedding_model: str,
@@ -1111,55 +731,32 @@ def set_embedding_run_status(
     if status not in {"pending", "indexing", "ready", "failed"}:
         raise ValueError(f"Unsupported embedding status: {status}")
 
-    now = _utc_now()
-    started_at = now if status == "indexing" else None
-    completed_at = now if status in {"ready", "failed"} else None
+    now_dt = _utc_now_datetime()
+    started_at = now_dt if status == "indexing" else None
+    completed_at = now_dt if status in {"ready", "failed"} else None
 
-    connection.execute(
-        """
-        INSERT INTO embedding_runs (
-            filing_id,
-            embedding_model,
-            vector_collection,
-            status,
-            expected_point_count,
-            indexed_point_count,
-            error_message,
-            started_at,
-            completed_at,
-            updated_at
+    session = connection._require_session()
+    run = session.get(EmbeddingRun, (filing_id, embedding_model, vector_collection))
+    if run is None:
+        run = EmbeddingRun(
+            filing_id=filing_id,
+            embedding_model=embedding_model,
+            vector_collection=vector_collection,
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(filing_id, embedding_model, vector_collection) DO UPDATE SET
-            status = excluded.status,
-            expected_point_count = excluded.expected_point_count,
-            indexed_point_count = excluded.indexed_point_count,
-            error_message = excluded.error_message,
-            started_at = CASE
-                WHEN excluded.status = 'indexing' THEN excluded.started_at
-                ELSE embedding_runs.started_at
-            END,
-            completed_at = excluded.completed_at,
-            updated_at = excluded.updated_at
-        """,
-        (
-            filing_id,
-            embedding_model,
-            vector_collection,
-            status,
-            expected_point_count,
-            indexed_point_count,
-            error_message,
-            started_at,
-            completed_at,
-            now,
-        ),
-    )
-    connection.commit()
+        session.add(run)
+    run.status = status
+    run.expected_point_count = expected_point_count
+    run.indexed_point_count = indexed_point_count
+    run.error_message = error_message
+    if status == "indexing":
+        run.started_at = started_at
+    run.completed_at = completed_at
+    run.updated_at = now_dt
+    session.commit()
 
 
 def get_ready_accession_numbers(
-    connection: sqlite3.Connection,
+    connection: StorageConnection,
     *,
     embedding_model: str,
     vector_collection: str,
@@ -1194,7 +791,7 @@ def get_ready_accession_numbers(
     ]
 
 
-def load_planner_metadata(connection: sqlite3.Connection) -> list[sqlite3.Row]:
+def load_planner_metadata(connection: StorageConnection) -> list[Any]:
     return connection.execute(
         """
         SELECT DISTINCT
@@ -1210,11 +807,11 @@ def load_planner_metadata(connection: sqlite3.Connection) -> list[sqlite3.Row]:
 
 
 def load_index_metadata(
-    connection: sqlite3.Connection,
+    connection: StorageConnection,
     *,
     embedding_model: str,
     vector_collection: str,
-) -> list[sqlite3.Row]:
+) -> list[Any]:
     return connection.execute(
         """
         SELECT
@@ -1238,7 +835,7 @@ def load_index_metadata(
     ).fetchall()
 
 
-def load_index_section_counts(connection: sqlite3.Connection) -> list[sqlite3.Row]:
+def load_index_section_counts(connection: StorageConnection) -> list[Any]:
     return connection.execute(
         """
         SELECT
@@ -1254,7 +851,7 @@ def load_index_section_counts(connection: sqlite3.Connection) -> list[sqlite3.Ro
 
 
 def load_index_health_counts(
-    connection: sqlite3.Connection,
+    connection: StorageConnection,
     *,
     embedding_model: str,
     vector_collection: str,
@@ -1308,31 +905,19 @@ def load_index_health_counts(
 
 
 def update_embedding_run_progress(
-    connection: sqlite3.Connection,
+    connection: StorageConnection,
     *,
     filing_id: int,
     embedding_model: str,
     vector_collection: str,
     indexed_point_count: int,
 ) -> None:
-    connection.execute(
-        """
-        UPDATE embedding_runs
-        SET indexed_point_count = ?, updated_at = ?
-        WHERE filing_id = ?
-          AND embedding_model = ?
-          AND vector_collection = ?
-          AND status = 'indexing'
-        """,
-        (
-            indexed_point_count,
-            _utc_now(),
-            filing_id,
-            embedding_model,
-            vector_collection,
-        ),
-    )
-    connection.commit()
+    session = connection._require_session()
+    run = session.get(EmbeddingRun, (filing_id, embedding_model, vector_collection))
+    if run is not None and run.status == "indexing":
+        run.indexed_point_count = indexed_point_count
+        run.updated_at = _utc_now_datetime()
+        session.commit()
 
 
 def _validate_source(source: SourceRecord) -> None:
@@ -1360,6 +945,16 @@ def _validate_choice(field_name: str, value: str, supported_values: set[str]) ->
 
 def _utc_now() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _utc_now_datetime() -> datetime:
+    return datetime.now(UTC)
+
+
+def _coerce_datetime(value: str | datetime | None) -> datetime | None:
+    if value is None or isinstance(value, datetime):
+        return value
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
 def _sqlalchemy_statement(
