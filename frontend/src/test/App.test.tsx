@@ -101,6 +101,8 @@ const indexPayload: IndexResponse = {
 };
 
 const queryPayload: QueryResponse = {
+  query_run_id: 10,
+  research_session_id: 3,
   question: "Compare AMD and NVDA business risks.",
   answer: "NVIDIA cites supply-chain risk [1]. AMD cites market risk [2].",
   warnings: ["llm answer generation unavailable"],
