@@ -90,6 +90,8 @@ export type SourceChunk = {
 };
 
 export type QueryResponse = {
+  query_run_id: number;
+  research_session_id: number;
   question: string;
   answer: string;
   warnings: string[];
@@ -97,4 +99,43 @@ export type QueryResponse = {
   planner_error: string | null;
   plan: SearchPlan | null;
   sources: SourceChunk[];
+};
+
+export type QueryRunSummary = {
+  id: number;
+  research_session_id: number | null;
+  question: string;
+  status: string;
+  answer_preview: string | null;
+  started_at: string;
+  completed_at: string | null;
+};
+
+export type RetrievalMetadataSource = Omit<SourceChunk, "text">;
+
+export type RetrievalMetadata = {
+  sources?: RetrievalMetadataSource[];
+  warnings?: string[];
+  used_fallback?: boolean;
+  planner_error?: string | null;
+  [key: string]: unknown;
+};
+
+export type QueryRunDetail = {
+  id: number;
+  research_session_id: number | null;
+  question: string;
+  status: string;
+  planner_model: string | null;
+  answer_model: string | null;
+  embedding_model: string | null;
+  vector_collection: string | null;
+  planned_query: Partial<SearchPlan> & Record<string, unknown>;
+  retrieval_metadata: RetrievalMetadata;
+  answer_text: string | null;
+  error_message: string | null;
+  started_at: string;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
 };

@@ -1,4 +1,10 @@
-import type { HealthResponse, IndexResponse, QueryResponse } from "./types";
+import type {
+  HealthResponse,
+  IndexResponse,
+  QueryResponse,
+  QueryRunDetail,
+  QueryRunSummary,
+} from "./types";
 
 const API_BASE_URL =
   window.SIGNALFORGE_RUNTIME_CONFIG?.apiBaseUrl ??
@@ -16,6 +22,14 @@ export async function fetchHealth(): Promise<HealthResponse> {
 
 export async function fetchIndex(): Promise<IndexResponse> {
   return requestJson<IndexResponse>("/api/index");
+}
+
+export async function fetchQueryRuns(): Promise<QueryRunSummary[]> {
+  return requestJson<QueryRunSummary[]>("/api/query-runs");
+}
+
+export async function fetchQueryRun(id: number): Promise<QueryRunDetail> {
+  return requestJson<QueryRunDetail>(`/api/query-runs/${id}`);
 }
 
 export async function submitQuery(

@@ -129,6 +129,41 @@ def test_initialize_database_uses_migrations_for_new_file_database(tmp_path):
     assert version["version_num"] == "0002_add_research_sessions_query_runs"
 
 
+def test_initialize_database_adopts_unversioned_initial_schema(tmp_path):
+    db_path = tmp_path / "signalforge.sqlite3"
+    cfg = make_alembic_config(db_path)
+    command.upgrade(cfg, "0001_initial_schema")
+
+    engine = create_engine(sqlalchemy_database_url(str(db_path)))
+    with engine.begin() as connection:
+        connection.exec_driver_sql(
+            "INSERT INTO companies (ticker, name) VALUES ('NVDA', 'NVIDIA CORP')"
+        )
+        connection.exec_driver_sql("DELETE FROM alembic_version")
+    engine.dispose()
+
+    with connect_database(db_path) as connection:
+        initialize_database(connection)
+        version = connection.execute("SELECT version_num FROM alembic_version").fetchone()
+        company = connection.execute(
+            "SELECT ticker, name FROM companies WHERE ticker = ?", ("NVDA",)
+        ).fetchone()
+        table_names = {
+            row["name"]
+            for row in connection.execute(
+                """
+                SELECT name
+                FROM sqlite_master
+                WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+                """
+            ).fetchall()
+        }
+
+    assert version["version_num"] == "0002_add_research_sessions_query_runs"
+    assert dict(company) == {"ticker": "NVDA", "name": "NVIDIA CORP"}
+    assert table_names == EXPECTED_TABLES
+
+
 def test_sqlalchemy_connection_path_supports_existing_storage_functions(tmp_path):
     db_path = tmp_path / "signalforge.sqlite3"
     engine = create_engine(sqlalchemy_database_url(str(db_path)), future=True)
@@ -176,7 +211,11 @@ def test_orm_metadata_matches_storage_schema_tables():
     sources = Base.metadata.tables["sources"]
     source_index_names = {index.name for index in sources.indexes}
     assert source_index_names >= {"idx_sources_company_id", "idx_sources_discovery_status"}
-    assert any("source_type" in str(constraint.sqltext) for constraint in sources.constraints if hasattr(constraint, "sqltext"))
+    assert any(
+        "source_type" in str(constraint.sqltext)
+        for constraint in sources.constraints
+        if hasattr(constraint, "sqltext")
+    )
 
     documents = Base.metadata.tables["documents"]
     document_index_names = {index.name for index in documents.indexes}
@@ -198,7 +237,11 @@ def test_orm_metadata_matches_storage_schema_tables():
         "idx_query_runs_status",
         "idx_query_runs_started_at",
     }
-    assert any("status" in str(constraint.sqltext) for constraint in query_runs.constraints if hasattr(constraint, "sqltext"))
+    assert any(
+        "status" in str(constraint.sqltext)
+        for constraint in query_runs.constraints
+        if hasattr(constraint, "sqltext")
+    )
 
 
 def test_query_session_orm_schema_round_trips_json_and_enforces_status(tmp_path):
