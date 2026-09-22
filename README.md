@@ -103,6 +103,42 @@ uv run python -m signalforge.cli.answer_query \
 
 Answers cite retrieved evidence with normalized labels. SEC evidence is labeled by ticker, filing year, filing item, and chunk. Web document evidence is labeled by source name, publication date when available, and article title.
 
+## Evaluation dataset
+
+`evaluation/datasets/benchmark-v1.json` is the version 1.0 offline benchmark.
+Each case has a question, query class, planner context and expected plan, stable
+evidence labels and passages, answer facts, and rubric tags. The 24 seeded cases
+cover lookup, synthesis, comparison, trend, missing evidence, and conflicting
+sources. Their passages are **synthetic fixture text**, not SEC filing claims;
+use them with a fixture index when evaluating retrieval or answers. The original
+`tests/fixtures/planner_golden.json` remains accepted as a planner-only legacy
+dataset via `--dataset`.
+
+The three evaluators validate their dataset before running and print its version
+and SHA-256 content hash. The hash uses canonical JSON, so whitespace changes do
+not create a new dataset identity. A change to case content should also bump the
+dataset version and retain the old file for reproducible comparisons.
+
+```bash
+uv run python -m signalforge.cli.evaluate_planner --dataset tests/fixtures/planner_golden.json
+uv run python -m signalforge.cli.evaluate_retrieval --dataset evaluation/datasets/benchmark-v1.json
+uv run python -m signalforge.cli.evaluate_answers --dataset evaluation/datasets/benchmark-v1.json
+```
+
+To promote a completed `query_run` into the benchmark:
+
+1. Inspect its saved question, plan, answer, and retrieval metadata alongside the
+   actual source passages. Confirm that the source is allowed in the benchmark
+   and record a stable source or fixture label for every relevant passage.
+2. Have a human reviewer verify the expected plan, independently check each
+   answer fact against the passages, assign a query class and rubric tags, and
+   document any missing or conflicting evidence. Do not treat the model answer
+   or its citations as ground truth by themselves.
+3. Add the reviewed case to a **new versioned dataset file**, validate it with
+   `uv run pytest tests/test_evaluation_dataset.py tests/test_planner_evaluator.py`,
+   and record the printed content hash with experiment results. A `query_run` is
+   not promoted merely because it completed successfully.
+
 ## Source Lifecycle
 
 Source discovery follows this flow:

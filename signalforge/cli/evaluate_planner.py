@@ -1,10 +1,10 @@
 import argparse
-import json
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 from signalforge.config import RuntimeConfig
+from signalforge.evaluation.dataset import DEFAULT_DATASET, load_dataset
 from signalforge.query_planner import (
     PLANNER_PROMPT_VERSION,
     PLANNER_TEMPERATURE,
@@ -13,20 +13,22 @@ from signalforge.query_planner import (
 )
 
 
-DEFAULT_DATASET = Path("tests/fixtures/planner_golden.json")
 SET_FIELDS = {"tickers", "sections", "filing_years"}
 
 
 def main() -> None:
     load_dotenv()
     args = parse_args()
-    cases = json.loads(args.dataset.read_text())
+    dataset = load_dataset(args.dataset)
+    cases = dataset.cases
     planner = DeepSeekQueryPlanner.from_environment(model=args.model)
 
     print(f"Model: {args.model}")
     print(f"Temperature: {PLANNER_TEMPERATURE}")
     print(f"Prompt version: {PLANNER_PROMPT_VERSION}")
     print(f"Dataset: {args.dataset}\n")
+    print(f"Dataset version: {dataset.version}")
+    print(f"Dataset content SHA-256: {dataset.content_hash}\n")
 
     passed = 0
     for case in cases:
