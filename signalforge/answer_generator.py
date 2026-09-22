@@ -14,6 +14,7 @@ from signalforge.vector_store import SearchResult
 
 
 DEFAULT_ANSWER_MODEL = "deepseek-v4-flash"
+ANSWER_PROMPT_VERSION = "answer-v1.0.0"
 ANSWER_TEMPERATURE = 0.0
 
 
@@ -81,6 +82,11 @@ class AnswerGenerator:
         plan: SearchPlan,
         evidence: list["EvidenceBlock"],
     ) -> str:
+        from signalforge.telemetry import current_telemetry
+
+        telemetry = current_telemetry()
+        if telemetry is not None:
+            telemetry.record_attempt("answer")
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[
@@ -94,6 +100,8 @@ class AnswerGenerator:
             temperature=ANSWER_TEMPERATURE,
             extra_body={"thinking": {"type": "disabled"}},
         )
+        if telemetry is not None:
+            telemetry.record_usage("answer", response)
         content = response.choices[0].message.content
         if not content:
             raise ValueError("Answer model returned an empty response")

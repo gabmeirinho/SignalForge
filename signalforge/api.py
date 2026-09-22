@@ -6,9 +6,12 @@ from fastapi import FastAPI, HTTPException, Query as QueryParam
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
+from signalforge.answer_generator import ANSWER_PROMPT_VERSION
 from signalforge.config import RuntimeConfig, target_exists
 from signalforge.index_health import CorpusIndexHealth, IndexHealth, check_index_health
+from signalforge.query_planner import PLANNER_PROMPT_VERSION
 from signalforge.rag_service import QueryResponse, answer_question
+from signalforge.telemetry import QueryTelemetry
 from signalforge.storage import (
     complete_query_run,
     connect_database,
@@ -220,6 +223,7 @@ class QueryRunDetailResponse(BaseModel):
     retrieval_metadata: dict
     answer_text: str | None
     error_message: str | None
+    telemetry: dict
     started_at: str
     completed_at: str | None
     created_at: str
@@ -404,6 +408,16 @@ def query(request: QueryRequest) -> QueryApiResponse:
             vector_collection=config.collection,
         )
 
+    telemetry = QueryTelemetry(
+        config=config,
+        run_id=query_run_id,
+        planner_model=config.planner_model,
+        answer_model=config.answer_model,
+        planner_prompt_version=PLANNER_PROMPT_VERSION,
+        answer_prompt_version=ANSWER_PROMPT_VERSION,
+        planner_provider="deepseek" if os.getenv("DEEPSEEK_API_KEY") else "local",
+        answer_provider="deepseek" if os.getenv("DEEPSEEK_API_KEY") else "local",
+    )
     try:
         response = answer_question(
             request.question,
@@ -413,24 +427,31 @@ def query(request: QueryRequest) -> QueryApiResponse:
             embedding_model=config.embedding_model,
             planner_model=config.planner_model,
             answer_model=config.answer_model,
+            telemetry=telemetry,
         )
     except FileNotFoundError as error:
+        telemetry.finish("failed", "FileNotFoundError")
         error_message = str(error)
         record_failed_query_run(
             config,
             query_run_id=query_run_id,
             error_message=error_message,
+            telemetry=telemetry,
         )
         raise HTTPException(status_code=503, detail=str(error)) from error
     except Exception as error:
+        telemetry.finish("failed", type(error).__name__)
         error_message = f"RAG query failed: {type(error).__name__}"
         record_failed_query_run(
             config,
             query_run_id=query_run_id,
             error_message=error_message,
+            telemetry=telemetry,
         )
         raise HTTPException(status_code=500, detail=error_message) from error
 
+    if response.telemetry is None:
+        telemetry.finish("completed")
     with connect_database(config.database_target) as connection:
         initialize_database(connection)
         complete_query_run(
@@ -443,6 +464,7 @@ def query(request: QueryRequest) -> QueryApiResponse:
             answer_model=config.answer_model,
             embedding_model=config.embedding_model,
             vector_collection=config.collection,
+            telemetry=(response.telemetry or telemetry).storage_values(),
         )
 
     return query_response_to_api(
@@ -459,6 +481,7 @@ def record_failed_query_run(
     *,
     query_run_id: int,
     error_message: str,
+    telemetry: QueryTelemetry,
 ) -> None:
     with connect_database(config.database_target) as connection:
         initialize_database(connection)
@@ -471,6 +494,7 @@ def record_failed_query_run(
             answer_model=config.answer_model,
             embedding_model=config.embedding_model,
             vector_collection=config.collection,
+            telemetry=telemetry.storage_values(),
         )
 
 
@@ -590,6 +614,7 @@ def query_run_detail_response(run) -> QueryRunDetailResponse:
         retrieval_metadata=run.retrieval_metadata,
         answer_text=run.answer_text,
         error_message=run.error_message,
+        telemetry=run.telemetry,
         started_at=format_required_datetime(run.started_at),
         completed_at=format_optional_datetime(run.completed_at),
         created_at=format_required_datetime(run.created_at),

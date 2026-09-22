@@ -162,6 +162,57 @@ uv run python -m signalforge.cli.add_source \
   --trust-level high
 ```
 
+## Query telemetry
+
+Completed and failed API query runs save planning, retrieval, answer, and total
+latency; planner and answer provider/model/prompt versions; fallback and retry
+counts; terminal error category; token usage status and counts; and an estimated
+USD cost. A missing provider usage response is recorded as `unavailable`. A
+retry with an unreported attempt is `partial` because that attempt may have
+consumed tokens. In either case the cost is unavailable, never inferred
+from text length.
+
+The price snapshot is `deepseek-2026-09-22`, based on the
+[DeepSeek pricing table](https://api-docs.deepseek.com/quick_start/pricing/).
+It records the UTC peak/off-peak tier and uses cache-miss pricing if the provider
+does not report cached prompt tokens. Estimates may differ from the provider's
+bill. Unknown models have an unavailable cost.
+
+OpenTelemetry export is disabled by default. To send content-free query and stage
+spans to [Langfuse's OTLP endpoint](https://langfuse.com/integrations/native/opentelemetry),
+set:
+
+```bash
+SIGNALFORGE_TRACING_ENABLED=1
+SIGNALFORGE_OTLP_TRACES_ENDPOINT=https://cloud.langfuse.com/api/public/otel/v1/traces
+LANGFUSE_PUBLIC_KEY=your_public_key
+LANGFUSE_SECRET_KEY=your_secret_key
+```
+
+Use the endpoint for your Langfuse region or self-hosted instance. Trace
+attributes contain timings, counts, model and prompt identifiers, and status;
+they do not contain the question, prompts, source bodies, or credentials.
+
+To verify export against Langfuse Cloud, create a project and its API key pair
+in **Project Settings → API Keys**, put the four variables above in `.env`, and
+start the API with `make api`. A [local Langfuse stack](infra/langfuse/README.md)
+is also available on port 3000.
+Send a query:
+
+```bash
+curl -sS http://localhost:8000/api/query \
+  -H 'Content-Type: application/json' \
+  -d '{"question":"What are NVIDIA risk factors?","include_source_text":false}'
+```
+
+Use the returned `query_run_id` at `/api/query-runs/{query_run_id}` to inspect
+stored telemetry. In the matching Langfuse project, open **Tracing** and select
+the latest `signalforge.query` trace. It contains `signalforge.planning`,
+`signalforge.retrieval`, and `signalforge.answer` child spans. The exporter sends
+the Langfuse v4 ingestion header, so traces should appear shortly after export.
+If the API has no `DEEPSEEK_API_KEY`, token usage and cost are unavailable, while
+stage timings and fallback counts are still recorded.
+
 ## Local App
 
 The lightweight local mode uses SQLite and embedded Qdrant paths by default:

@@ -477,6 +477,13 @@ def test_query_validates_and_shapes_response(monkeypatch, tmp_path):
     assert run.question == "What are NVIDIA's risks?"
     assert run.status == "completed"
     assert run.answer_text == "NVIDIA cites supply-chain risk [1]."
+    assert run.telemetry["total_ms"] is not None
+    assert run.telemetry["token_usage_status"] == "unavailable"
+    assert run.telemetry["price_catalog_version"] == "deepseek-2026-09-22"
+    assert run.telemetry["estimated_cost_usd"] is None
+    detail = client.get(f"/api/query-runs/{payload['query_run_id']}").json()
+    assert detail["telemetry"]["token_usage_status"] == "unavailable"
+    assert detail["telemetry"]["total_ms"] is not None
     assert run.planned_query == {
         "tickers": ["NVDA"],
         "sections": ["1A"],
@@ -635,6 +642,9 @@ def test_query_persists_failed_run_when_answer_generation_raises(monkeypatch, tm
     assert run.status == "failed"
     assert run.answer_text is None
     assert run.error_message == "RAG query failed: RuntimeError"
+    assert run.telemetry["error_category"] == "RuntimeError"
+    assert run.telemetry["total_ms"] is not None
+    assert run.telemetry["token_usage_status"] == "unavailable"
     assert run.planner_model == "planner-v1"
     assert run.answer_model == "answer-v1"
     assert run.embedding_model == "embedding-v1"

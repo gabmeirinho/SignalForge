@@ -22,6 +22,10 @@ class RuntimeConfig:
     embedding_model: str = DEFAULT_EMBEDDING_MODEL
     planner_model: str = DEFAULT_PLANNER_MODEL
     answer_model: str = DEFAULT_ANSWER_MODEL
+    tracing_enabled: bool = False
+    otlp_traces_endpoint: str | None = None
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: str | None = None
 
     @classmethod
     def from_environment(cls) -> "RuntimeConfig":
@@ -34,6 +38,10 @@ class RuntimeConfig:
             embedding_model=os.getenv("SIGNALFORGE_EMBEDDING_MODEL", cls.embedding_model),
             planner_model=os.getenv("SIGNALFORGE_PLANNER_MODEL", cls.planner_model),
             answer_model=os.getenv("SIGNALFORGE_ANSWER_MODEL", cls.answer_model),
+            tracing_enabled=os.getenv("SIGNALFORGE_TRACING_ENABLED", "0") == "1",
+            otlp_traces_endpoint=_empty_to_none(os.getenv("SIGNALFORGE_OTLP_TRACES_ENDPOINT")),
+            langfuse_public_key=_empty_to_none(os.getenv("LANGFUSE_PUBLIC_KEY")),
+            langfuse_secret_key=_empty_to_none(os.getenv("LANGFUSE_SECRET_KEY")),
         )
 
     @property

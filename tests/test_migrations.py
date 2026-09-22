@@ -66,6 +66,11 @@ def test_initial_migration_creates_current_schema(tmp_path):
         "idx_query_runs_status",
         "idx_query_runs_started_at",
     }
+    assert {column["name"] for column in inspector.get_columns("query_runs")} >= {
+        "planning_ms", "retrieval_ms", "answer_ms", "total_ms",
+        "token_usage_status", "token_usage_json", "estimated_cost_usd",
+        "price_catalog_version", "retry_count", "fallback_count", "error_category",
+    }
 
     command.downgrade(cfg, "base")
 
@@ -126,7 +131,27 @@ def test_initialize_database_uses_migrations_for_new_file_database(tmp_path):
         initialize_database(connection)
         version = connection.execute("SELECT version_num FROM alembic_version").fetchone()
 
-    assert version["version_num"] == "0002_add_research_sessions_query_runs"
+    assert version["version_num"] == "0003_add_query_run_telemetry"
+
+
+def test_telemetry_migration_preserves_existing_query_runs(tmp_path):
+    db_path = tmp_path / "signalforge.sqlite3"
+    cfg = make_alembic_config(db_path)
+    command.upgrade(cfg, "0002_add_research_sessions_query_runs")
+    with connect_database(db_path) as connection:
+        connection.execute(
+            "INSERT INTO query_runs (question, status, started_at) "
+            "VALUES ('legacy question', 'completed', CURRENT_TIMESTAMP)"
+        )
+        connection.commit()
+    command.upgrade(cfg, "head")
+    with connect_database(db_path) as connection:
+        row = connection.execute(
+            "SELECT question, planning_ms, token_usage_json FROM query_runs"
+        ).fetchone()
+    assert row["question"] == "legacy question"
+    assert row["planning_ms"] is None
+    assert row["token_usage_json"] is None
 
 
 def test_initialize_database_adopts_unversioned_initial_schema(tmp_path):

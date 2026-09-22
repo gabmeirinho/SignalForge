@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 
 import pytest
 
@@ -295,6 +296,26 @@ def test_query_run_lifecycle_persists_completed_history(tmp_path):
                 "sources": [{"label": "[1]", "score": 0.81, "ticker": "NVDA"}],
                 "warnings": [],
             },
+            telemetry={
+                "planning_ms": 12.5,
+                "retrieval_ms": 3.0,
+                "answer_ms": 18.0,
+                "total_ms": 34.0,
+                "planner_provider": "deepseek",
+                "answer_provider": "deepseek",
+                "planner_prompt_version": "planner-v1.3.0",
+                "answer_prompt_version": "answer-v1.0.0",
+                "token_usage_status": "reported",
+                "prompt_tokens": 120,
+                "completion_tokens": 45,
+                "token_usage": {"planning": {"status": "reported", "prompt_tokens": 50}},
+                "price_catalog_version": "deepseek-2026-09-22",
+                "price_tier": "peak",
+                "estimated_cost_usd": "0.00001234",
+                "retry_count": 1,
+                "fallback_count": 0,
+                "error_category": None,
+            },
         )
 
         session_record = load_research_session(connection, session_id)
@@ -321,6 +342,9 @@ def test_query_run_lifecycle_persists_completed_history(tmp_path):
         "sources": [{"label": "[1]", "score": 0.81, "ticker": "NVDA"}],
         "warnings": [],
     }
+    assert loaded.telemetry["planning_ms"] == 12.5
+    assert loaded.telemetry["prompt_tokens"] == 120
+    assert loaded.telemetry["estimated_cost_usd"] == Decimal("0.00001234")
     assert loaded.started_at is not None
     assert loaded.completed_at is not None
     assert [run.id for run in runs] == [run_id]

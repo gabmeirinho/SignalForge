@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
 import sqlalchemy as sa
@@ -337,6 +338,24 @@ class QueryRun(Base):
     )
     answer_text: Mapped[str | None] = mapped_column(sa.Text)
     error_message: Mapped[str | None] = mapped_column(sa.Text)
+    planning_ms: Mapped[float | None] = mapped_column(sa.Float)
+    retrieval_ms: Mapped[float | None] = mapped_column(sa.Float)
+    answer_ms: Mapped[float | None] = mapped_column(sa.Float)
+    total_ms: Mapped[float | None] = mapped_column(sa.Float)
+    planner_provider: Mapped[str | None] = mapped_column(sa.Text)
+    answer_provider: Mapped[str | None] = mapped_column(sa.Text)
+    planner_prompt_version: Mapped[str | None] = mapped_column(sa.Text)
+    answer_prompt_version: Mapped[str | None] = mapped_column(sa.Text)
+    token_usage_status: Mapped[str | None] = mapped_column(sa.Text)
+    prompt_tokens: Mapped[int | None] = mapped_column(sa.Integer)
+    completion_tokens: Mapped[int | None] = mapped_column(sa.Integer)
+    token_usage_json: Mapped[dict[str, Any] | None] = mapped_column(JSONVariant)
+    price_catalog_version: Mapped[str | None] = mapped_column(sa.Text)
+    price_tier: Mapped[str | None] = mapped_column(sa.Text)
+    estimated_cost_usd: Mapped[Decimal | None] = mapped_column(sa.Numeric(14, 8))
+    retry_count: Mapped[int | None] = mapped_column(sa.Integer)
+    fallback_count: Mapped[int | None] = mapped_column(sa.Integer)
+    error_category: Mapped[str | None] = mapped_column(sa.Text)
     started_at: Mapped[datetime | str] = mapped_column(sa.DateTime(timezone=True), nullable=False)
     completed_at: Mapped[datetime | str | None] = mapped_column(sa.DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
