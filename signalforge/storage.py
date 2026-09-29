@@ -257,28 +257,6 @@ def initialize_database(connection: StorageConnection) -> None:
     upgrade_database(connection.target)
 
 
-def _migration_target_for_empty_database(connection: StorageConnection) -> str | None:
-    user_tables = {
-        row["name"]
-        for row in connection.execute(
-            """
-            SELECT name
-            FROM sqlite_master
-            WHERE type = 'table'
-              AND name NOT LIKE 'sqlite_%'
-              AND name != 'alembic_version'
-            """
-        ).fetchall()
-    }
-    if user_tables:
-        return None
-
-    database_path = connection.execute("PRAGMA database_list").fetchone()["file"]
-    if not database_path:
-        return None
-    return database_path
-
-
 def upsert_company(connection: StorageConnection, company: CompanyRecord) -> int:
     session = connection._require_session()
     ticker = company.ticker.upper()
@@ -1239,10 +1217,6 @@ def _validate_choice(field_name: str, value: str, supported_values: set[str]) ->
     if value not in supported_values:
         allowed = ", ".join(sorted(supported_values))
         raise ValueError(f"Unsupported {field_name}: {value}. Expected one of: {allowed}")
-
-
-def _utc_now() -> str:
-    return datetime.now(UTC).isoformat()
 
 
 def _utc_now_datetime() -> datetime:

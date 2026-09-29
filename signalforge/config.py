@@ -52,14 +52,6 @@ class RuntimeConfig:
     def qdrant_target(self) -> str:
         return self.qdrant_url or self.qdrant_path
 
-    @property
-    def uses_database_url(self) -> bool:
-        return self.database_url is not None
-
-    @property
-    def uses_qdrant_url(self) -> bool:
-        return self.qdrant_url is not None
-
 
 def _empty_to_none(value: str | None) -> str | None:
     if value is None:

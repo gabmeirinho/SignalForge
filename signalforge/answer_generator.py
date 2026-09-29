@@ -61,7 +61,6 @@ class AnswerGenerator:
     ) -> GeneratedAnswer:
         if not chunks:
             return no_evidence_answer(
-                question=question,
                 plan=plan,
                 available_years_by_ticker=available_years_by_ticker or {},
             )
@@ -119,7 +118,6 @@ class ExtractiveAnswerGenerator:
     ) -> GeneratedAnswer:
         if not chunks:
             generated = no_evidence_answer(
-                question=question,
                 plan=plan,
                 available_years_by_ticker=available_years_by_ticker or {},
             )
@@ -235,7 +233,6 @@ def evidence_metadata(result: SearchResult) -> dict:
 
 def no_evidence_answer(
     *,
-    question: str,
     plan: SearchPlan,
     available_years_by_ticker: dict[str, tuple[int, ...]],
 ) -> GeneratedAnswer:
