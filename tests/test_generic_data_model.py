@@ -1,5 +1,4 @@
 import json
-from decimal import Decimal
 
 import pytest
 
@@ -309,9 +308,6 @@ def test_query_run_lifecycle_persists_completed_history(tmp_path):
                 "prompt_tokens": 120,
                 "completion_tokens": 45,
                 "token_usage": {"planning": {"status": "reported", "prompt_tokens": 50}},
-                "price_catalog_version": "deepseek-2026-09-22",
-                "price_tier": "peak",
-                "estimated_cost_usd": "0.00001234",
                 "retry_count": 1,
                 "fallback_count": 0,
                 "error_category": None,
@@ -344,7 +340,6 @@ def test_query_run_lifecycle_persists_completed_history(tmp_path):
     }
     assert loaded.telemetry["planning_ms"] == 12.5
     assert loaded.telemetry["prompt_tokens"] == 120
-    assert loaded.telemetry["estimated_cost_usd"] == Decimal("0.00001234")
     assert loaded.started_at is not None
     assert loaded.completed_at is not None
     assert [run.id for run in runs] == [run_id]

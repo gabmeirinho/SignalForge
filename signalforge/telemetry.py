@@ -4,8 +4,6 @@ import base64
 from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
-from decimal import Decimal
 from functools import lru_cache
 from time import perf_counter
 from typing import Any, Iterator
@@ -18,15 +16,6 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from signalforge.config import RuntimeConfig
 
 
-PRICE_CATALOG_VERSION = "deepseek-2026-09-22"
-# USD per million tokens. Snapshot: https://api-docs.deepseek.com/quick_start/pricing/
-# Unknown cached-token counts are priced as cache misses. Failed calls without
-# reported usage cannot be priced.
-PRICE_CATALOG = {
-    "deepseek-flash": {"peak": ("0.006", "0.30", "1.20"), "off_peak": ("0.003", "0.15", "0.60")},
-    "deepseek-v4-pro": {"peak": ("0.044", "1.32", "3.96"), "off_peak": ("0.022", "0.66", "1.98")},
-}
-MODEL_PRICE_ALIAS = {"deepseek-v4-flash": "deepseek-flash"}
 _active: ContextVar["QueryTelemetry | None"] = ContextVar("query_telemetry", default=None)
 
 
@@ -61,12 +50,6 @@ def _span(config: RuntimeConfig, name: str):
     ).start_as_current_span(name, record_exception=False, set_status_on_exception=False)
 
 
-def _price_tier(now: datetime) -> str:
-    utc_now = now.astimezone(UTC)
-    hour = utc_now.hour
-    return "peak" if utc_now.weekday() < 5 and (1 <= hour < 4 or 6 <= hour < 10) else "off_peak"
-
-
 @dataclass
 class QueryTelemetry:
     config: RuntimeConfig = field(default_factory=RuntimeConfig)
@@ -88,7 +71,6 @@ class QueryTelemetry:
     total_ms: float | None = None
     error_category: str | None = None
     status: str = "running"
-    price_tier: str = field(default_factory=lambda: _price_tier(datetime.now(UTC)))
 
     @contextmanager
     def activate(self) -> Iterator[None]:
@@ -172,32 +154,6 @@ class QueryTelemetry:
             sum(self.usage[name]["completion_tokens"] for name in called),
         )
 
-    def estimated_cost_usd(self) -> Decimal | None:
-        status, _, _ = self._token_totals()
-        if status != "reported":
-            return None
-        total = Decimal("0")
-        for stage, provider, model in (
-            ("planning", self.planner_provider, self.planner_model),
-            ("answer", self.answer_provider, self.answer_model),
-        ):
-            if self.attempts[stage] == 0:
-                continue
-            if provider != "deepseek" or model is None:
-                return None
-            rates = PRICE_CATALOG.get(MODEL_PRICE_ALIAS.get(model, model))
-            if rates is None:
-                return None
-            hit_rate, miss_rate, output_rate = map(Decimal, rates[self.price_tier])
-            usage = self.usage[stage]
-            cached = usage["cached_prompt_tokens"] or 0
-            total += (
-                Decimal(cached) * hit_rate
-                + Decimal(usage["prompt_tokens"] - cached) * miss_rate
-                + Decimal(usage["completion_tokens"]) * output_rate
-            ) / Decimal(1_000_000)
-        return total.quantize(Decimal("0.00000001"))
-
     def storage_values(self) -> dict[str, Any]:
         token_status, prompt_tokens, completion_tokens = self._token_totals()
         stage_usage = {}
@@ -219,9 +175,6 @@ class QueryTelemetry:
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
             "token_usage": stage_usage,
-            "price_catalog_version": PRICE_CATALOG_VERSION,
-            "price_tier": self.price_tier,
-            "estimated_cost_usd": self.estimated_cost_usd(),
             "retry_count": sum(max(0, count - 1) for count in self.attempts.values()),
             "fallback_count": self.fallback_count,
             "error_category": self.error_category,
@@ -248,8 +201,6 @@ class QueryTelemetry:
             "planner_prompt_version",
             "answer_prompt_version",
             "token_usage_status",
-            "price_catalog_version",
-            "price_tier",
             "error_category",
         ):
             if values[name] is not None:
@@ -258,7 +209,3 @@ class QueryTelemetry:
             model = getattr(self, name)
             if model is not None:
                 span.set_attribute(f"signalforge.{name}", model)
-        if values["estimated_cost_usd"] is not None:
-            span.set_attribute(
-                "signalforge.estimated_cost_usd", float(values["estimated_cost_usd"])
-            )

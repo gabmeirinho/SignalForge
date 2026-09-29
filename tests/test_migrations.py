@@ -68,8 +68,8 @@ def test_initial_migration_creates_current_schema(tmp_path):
     }
     assert {column["name"] for column in inspector.get_columns("query_runs")} >= {
         "planning_ms", "retrieval_ms", "answer_ms", "total_ms",
-        "token_usage_status", "token_usage_json", "estimated_cost_usd",
-        "price_catalog_version", "retry_count", "fallback_count", "error_category",
+        "token_usage_status", "token_usage_json",
+        "retry_count", "fallback_count", "error_category",
     }
 
     command.downgrade(cfg, "base")

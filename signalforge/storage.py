@@ -1135,12 +1135,10 @@ def _finish_query_run(
             "planning_ms", "retrieval_ms", "answer_ms", "total_ms",
             "planner_provider", "answer_provider", "planner_prompt_version",
             "answer_prompt_version", "token_usage_status", "prompt_tokens",
-            "completion_tokens", "price_catalog_version", "price_tier",
-            "retry_count", "fallback_count", "error_category",
+            "completion_tokens", "retry_count", "fallback_count", "error_category",
         ):
             setattr(run, key, telemetry.get(key))
         run.token_usage_json = telemetry.get("token_usage")
-        run.estimated_cost_usd = telemetry.get("estimated_cost_usd")
     session.commit()
 
 
@@ -1171,9 +1169,6 @@ def _query_run_record(run: QueryRun) -> QueryRunRecord:
             "prompt_tokens": run.prompt_tokens,
             "completion_tokens": run.completion_tokens,
             "token_usage": run.token_usage_json,
-            "price_catalog_version": run.price_catalog_version,
-            "price_tier": run.price_tier,
-            "estimated_cost_usd": run.estimated_cost_usd,
             "retry_count": run.retry_count,
             "fallback_count": run.fallback_count,
             "error_category": run.error_category,

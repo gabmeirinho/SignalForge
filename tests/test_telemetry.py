@@ -1,4 +1,3 @@
-from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import SimpleNamespace
 from threading import Thread
@@ -10,17 +9,16 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from signalforge.config import RuntimeConfig
 from signalforge.answer_generator import AnswerGenerator
 from signalforge.query_planner import DeepSeekQueryPlanner, PlannerContext, SearchPlan
-from signalforge.telemetry import PRICE_CATALOG_VERSION, QueryTelemetry
+from signalforge.telemetry import QueryTelemetry
 from signalforge.vector_store import SearchResult
 
 
-def test_reported_usage_prices_cached_and_uncached_tokens():
+def test_reported_usage_sums_cached_and_uncached_tokens():
     metrics = QueryTelemetry(
         planner_provider="deepseek",
         answer_provider="deepseek",
         planner_model="deepseek-v4-flash",
         answer_model="deepseek-v4-flash",
-        price_tier="peak",
     )
     metrics.record_attempt("planning")
     metrics.record_attempt("answer")
@@ -50,17 +48,17 @@ def test_reported_usage_prices_cached_and_uncached_tokens():
     assert values["token_usage_status"] == "reported"
     assert values["prompt_tokens"] == 1_500_000
     assert values["completion_tokens"] == 200_000
-    assert values["estimated_cost_usd"] == Decimal("0.54300000")
-    assert values["price_catalog_version"] == PRICE_CATALOG_VERSION
+    assert values["token_usage"]["planning"]["cached_prompt_tokens"] == 500_000
+    assert values["token_usage"]["answer"]["cached_prompt_tokens"] == 0
     assert values["total_ms"] >= 0
 
 
-def test_missing_usage_or_retries_make_total_cost_unavailable():
+def test_missing_usage_or_retries_make_totals_unavailable():
     metrics = QueryTelemetry(planner_provider="deepseek", planner_model="deepseek-v4-flash")
     metrics.record_attempt("planning")
     metrics.record_usage("planning", SimpleNamespace(usage=None))
     assert metrics.storage_values()["token_usage_status"] == "unavailable"
-    assert metrics.storage_values()["estimated_cost_usd"] is None
+    assert metrics.storage_values()["prompt_tokens"] is None
 
     metrics.record_attempt("planning")
     metrics.record_usage(
@@ -75,7 +73,7 @@ def test_missing_usage_or_retries_make_total_cost_unavailable():
     )
     assert metrics.storage_values()["token_usage_status"] == "partial"
     assert metrics.storage_values()["retry_count"] == 1
-    assert metrics.storage_values()["estimated_cost_usd"] is None
+    assert metrics.storage_values()["prompt_tokens"] is None
 
 
 def test_retries_with_reported_usage_sum_every_attempt():
@@ -97,7 +95,7 @@ def test_retries_with_reported_usage_sum_every_attempt():
     assert values["token_usage_status"] == "reported"
     assert values["prompt_tokens"] == 30
     assert values["completion_tokens"] == 12
-    assert values["estimated_cost_usd"] is not None
+    assert values["token_usage"]["planning"]["reported_attempts"] == 2
 
 
 def test_model_calls_capture_provider_reported_usage():

@@ -265,8 +265,6 @@ def test_query_validates_and_shapes_response(monkeypatch, tmp_path):
     assert run.answer_text == "NVIDIA cites supply-chain risk [1]."
     assert run.telemetry["total_ms"] is not None
     assert run.telemetry["token_usage_status"] == "unavailable"
-    assert run.telemetry["price_catalog_version"] == "deepseek-2026-09-22"
-    assert run.telemetry["estimated_cost_usd"] is None
     assert run.planned_query == {
         "tickers": ["NVDA"],
         "sections": ["1A"],

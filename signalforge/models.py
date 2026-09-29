@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from decimal import Decimal
 from typing import Any
 
 import sqlalchemy as sa
@@ -350,9 +349,6 @@ class QueryRun(Base):
     prompt_tokens: Mapped[int | None] = mapped_column(sa.Integer)
     completion_tokens: Mapped[int | None] = mapped_column(sa.Integer)
     token_usage_json: Mapped[dict[str, Any] | None] = mapped_column(JSONVariant)
-    price_catalog_version: Mapped[str | None] = mapped_column(sa.Text)
-    price_tier: Mapped[str | None] = mapped_column(sa.Text)
-    estimated_cost_usd: Mapped[Decimal | None] = mapped_column(sa.Numeric(14, 8))
     retry_count: Mapped[int | None] = mapped_column(sa.Integer)
     fallback_count: Mapped[int | None] = mapped_column(sa.Integer)
     error_category: Mapped[str | None] = mapped_column(sa.Text)
