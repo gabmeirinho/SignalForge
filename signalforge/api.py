@@ -2,7 +2,7 @@ import os
 from collections import defaultdict
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query as QueryParam
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
@@ -19,11 +19,9 @@ from signalforge.storage import (
     fail_query_run,
     get_or_create_research_session,
     initialize_database,
-    list_query_runs,
     list_sources,
     load_index_metadata,
     load_index_section_counts,
-    load_query_run,
 )
 from signalforge.vector_store import create_qdrant_client
 
@@ -200,36 +198,6 @@ class QueryApiResponse(BaseModel):
     sources: list[SourceResponse]
 
 
-class QueryRunSummaryResponse(BaseModel):
-    id: int
-    research_session_id: int | None
-    question: str
-    status: str
-    answer_preview: str | None
-    started_at: str
-    completed_at: str | None
-
-
-class QueryRunDetailResponse(BaseModel):
-    id: int
-    research_session_id: int | None
-    question: str
-    status: str
-    planner_model: str | None
-    answer_model: str | None
-    embedding_model: str | None
-    vector_collection: str | None
-    planned_query: dict
-    retrieval_metadata: dict
-    answer_text: str | None
-    error_message: str | None
-    telemetry: dict
-    started_at: str
-    completed_at: str | None
-    created_at: str
-    updated_at: str
-
-
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     config = RuntimeConfig.from_environment()
@@ -337,46 +305,6 @@ def index() -> IndexResponse:
         embedding_model=config.embedding_model,
         collection=config.collection,
     )
-
-
-@app.get("/api/index/health", response_model=IndexHealthResponse)
-def index_health() -> IndexHealthResponse:
-    config = RuntimeConfig.from_environment()
-    return index_health_response(load_current_index_health(config))
-
-
-@app.get("/api/query-runs", response_model=list[QueryRunSummaryResponse])
-def query_runs(
-    research_session_id: int | None = QueryParam(default=None, ge=1),
-    limit: int = QueryParam(default=50, ge=1, le=200),
-) -> list[QueryRunSummaryResponse]:
-    config = RuntimeConfig.from_environment()
-    ensure_local_database(config)
-
-    with connect_database(config.database_target) as connection:
-        initialize_database(connection)
-        runs = list_query_runs(
-            connection,
-            research_session_id=research_session_id,
-            limit=limit,
-        )
-
-    return [query_run_summary_response(run) for run in runs]
-
-
-@app.get("/api/query-runs/{query_run_id}", response_model=QueryRunDetailResponse)
-def query_run(query_run_id: int) -> QueryRunDetailResponse:
-    config = RuntimeConfig.from_environment()
-    ensure_local_database(config)
-
-    with connect_database(config.database_target) as connection:
-        initialize_database(connection)
-        run = load_query_run(connection, query_run_id)
-
-    if run is None:
-        raise HTTPException(status_code=404, detail="Query run not found")
-
-    return query_run_detail_response(run)
 
 
 @app.post("/api/query", response_model=QueryApiResponse)
@@ -586,57 +514,6 @@ def retrieval_metadata_from_response(response: QueryResponse) -> dict:
         "used_fallback": response.used_fallback,
         "planner_error": response.planner_error,
     }
-
-
-def query_run_summary_response(run) -> QueryRunSummaryResponse:
-    return QueryRunSummaryResponse(
-        id=run.id,
-        research_session_id=run.research_session_id,
-        question=run.question,
-        status=run.status,
-        answer_preview=answer_preview(run.answer_text),
-        started_at=format_required_datetime(run.started_at),
-        completed_at=format_optional_datetime(run.completed_at),
-    )
-
-
-def query_run_detail_response(run) -> QueryRunDetailResponse:
-    return QueryRunDetailResponse(
-        id=run.id,
-        research_session_id=run.research_session_id,
-        question=run.question,
-        status=run.status,
-        planner_model=run.planner_model,
-        answer_model=run.answer_model,
-        embedding_model=run.embedding_model,
-        vector_collection=run.vector_collection,
-        planned_query=run.planned_query,
-        retrieval_metadata=run.retrieval_metadata,
-        answer_text=run.answer_text,
-        error_message=run.error_message,
-        telemetry=run.telemetry,
-        started_at=format_required_datetime(run.started_at),
-        completed_at=format_optional_datetime(run.completed_at),
-        created_at=format_required_datetime(run.created_at),
-        updated_at=format_required_datetime(run.updated_at),
-    )
-
-
-def answer_preview(answer_text: str | None, *, max_length: int = 180) -> str | None:
-    if answer_text is None:
-        return None
-
-    preview = " ".join(answer_text.split())
-    if len(preview) <= max_length:
-        return preview
-    return f"{preview[: max_length - 1]}..."
-
-
-def format_required_datetime(value) -> str:
-    formatted = format_optional_datetime(value)
-    if formatted is None:
-        raise ValueError("Expected datetime value")
-    return formatted
 
 
 def load_current_index_health(config: RuntimeConfig) -> IndexHealth:

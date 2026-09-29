@@ -195,8 +195,8 @@ they do not contain the question, prompts, source bodies, or credentials.
 
 To verify export against Langfuse Cloud, create a project and its API key pair
 in **Project Settings → API Keys**, put the four variables above in `.env`, and
-start the API with `make api`. A [local Langfuse stack](infra/langfuse/README.md)
-is also available on port 3000.
+start the API with `make api`. To verify against a local stack instead, start it
+as described in [Running the Local Langfuse Stack](#running-the-local-langfuse-stack).
 Send a query:
 
 ```bash
@@ -205,13 +205,110 @@ curl -sS http://localhost:8000/api/query \
   -d '{"question":"What are NVIDIA risk factors?","include_source_text":false}'
 ```
 
-Use the returned `query_run_id` at `/api/query-runs/{query_run_id}` to inspect
-stored telemetry. In the matching Langfuse project, open **Tracing** and select
-the latest `signalforge.query` trace. It contains `signalforge.planning`,
-`signalforge.retrieval`, and `signalforge.answer` child spans. The exporter sends
-the Langfuse v4 ingestion header, so traces should appear shortly after export.
+Telemetry is stored on the `query_runs` row for the returned `query_run_id` and
+is also returned in the `telemetry` object of the query response. In the matching
+Langfuse project, open **Tracing** and select the latest `signalforge.query`
+trace. It contains `signalforge.planning`, `signalforge.retrieval`, and
+`signalforge.answer` child spans. The exporter sends the Langfuse v4 ingestion
+header, so traces should appear shortly after export.
 If the API has no `DEEPSEEK_API_KEY`, token usage and cost are unavailable, while
 stage timings and fallback counts are still recorded.
+
+### Verifying export on Langfuse v4
+
+Langfuse v4 serves reads from a new observations-first data model. Trace data is
+written to the `events_full` and `events_core` ClickHouse tables; the v3
+`traces` and `observations` tables are legacy and stay empty on a v4 deployment
+unless it runs the `legacy` or `dual` write mode. Use the Observations API v2 to
+confirm traces arrived:
+
+```bash
+curl -sS -u "$LANGFUSE_PUBLIC_KEY:$LANGFUSE_SECRET_KEY" \
+  'http://127.0.0.1:3000/api/public/v2/observations?limit=5'
+```
+
+The deprecated `GET /api/public/traces` endpoint is not a valid check on v4.
+
+The worker's `DUAL WRITE` log line reporting `No partitions available for
+processing` is expected on a v4 deployment and does not indicate a failure. That
+job only moves data for older SDKs during a `legacy` or `dual` mode migration.
+
+### Running the Local Langfuse Stack
+
+The stack lives in [`infra/langfuse/`](infra/langfuse/) under its own Compose
+project. It needs the git-ignored `infra/langfuse/.env` to exist; it holds the
+generated passwords, initial user, and API keys.
+
+From the repository root:
+
+```bash
+docker compose -p signalforge-langfuse \
+  -f infra/langfuse/compose.yaml \
+  --env-file infra/langfuse/.env up -d
+```
+
+Then open **http://localhost:3000** and log in as `local@signalforge.test`. The
+password is readable with:
+
+```bash
+awk -F= '$1 == "LANGFUSE_INIT_USER_PASSWORD" { print $2 }' infra/langfuse/.env
+```
+
+The `SignalForge Evaluation` project and its API key pair are created on startup.
+Point the root `.env` at the local endpoint:
+
+```bash
+SIGNALFORGE_TRACING_ENABLED=1
+SIGNALFORGE_OTLP_TRACES_ENDPOINT=http://127.0.0.1:3000/api/public/otel/v1/traces
+```
+
+Stop the stack while keeping its volumes with `down` in place of `up -d`.
+
+#### Check the Docker context first
+
+This stack is often invisible to a bare `docker ps`, because it may run on a
+different Docker context than the one your CLI currently selects. `docker ps`
+showing no containers does not mean the stack is down; port 3000 may still be
+serving. Check which context owns it before starting a second copy:
+
+```bash
+docker context ls
+docker context inspect --format '{{.Name}}' default
+
+# If the stack is on another context, pass --context explicitly:
+docker --context default compose -p signalforge-langfuse \
+  -f infra/langfuse/compose.yaml \
+  --env-file infra/langfuse/.env ps
+```
+
+Running `up -d` against the wrong context starts a duplicate stack that
+collides on the published ports and splits trace data across two databases.
+
+#### Recreating the stack
+
+`--force-recreate` restarts containers but keeps volumes. Recreate the worker
+last, or restart it separately, so it does not hold stale sockets to the
+Postgres and Redis containers it was replaced alongside:
+
+```bash
+docker --context default compose -p signalforge-langfuse \
+  -f infra/langfuse/compose.yaml \
+  --env-file infra/langfuse/.env up -d --force-recreate
+
+docker --context default compose -p signalforge-langfuse \
+  -f infra/langfuse/compose.yaml \
+  --env-file infra/langfuse/.env up -d --force-recreate \
+  langfuse-worker langfuse-web
+```
+
+A worker left running against replaced dependencies logs
+`Socket timeout. Expecting data, but didn't receive any in 30000ms` on every
+queue job, including `event-propagation-queue`.
+
+The separate SignalForge Docker Compose API cannot reach this stack at
+`127.0.0.1:3000` from inside its container, because that address is the
+container's own loopback. Use a locally run `make api` process with this stack,
+or configure a container-reachable Langfuse endpoint.
 
 ## Local App
 
