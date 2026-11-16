@@ -111,7 +111,15 @@ on the conflicting-source questions. These are the next target for prompt work.
 uv run python -m signalforge.cli.evaluate_planner --dataset evaluation/datasets/benchmark-v1.json
 ```
 
-The test suite has 154 Python tests (plus an optional Postgres profile) and
+Benchmark v2 (`evaluation/datasets/benchmark-v2.json`) prepares retrieval
+scoring. It keeps v1's 24 questions and plans, and adds a shared corpus of 111
+synthetic passages tagged with ticker, section, and filing year. Each case grades
+corpus passages as required (2) or related (1); anything unlisted is irrelevant.
+Validation requires every answerable case to have at least three in-scope
+distractors, so a retriever has to rank the right passage above wrong ones in the
+same filing instead of returning everything that passes the filters.
+
+The test suite has 166 Python tests (plus an optional Postgres profile) and
 frontend tests with Vitest.
 
 ## Quickstart
@@ -163,7 +171,8 @@ docker compose up --build
 - Retrieval is dense-only. A hybrid BM25 and dense setup would help with exact
   financial terms and figures.
 - Retrieval and answer scores still need a fixture index built from the
-  benchmark's synthetic passages.
+  benchmark v2 corpus, plus recall@k and MRR computed against its relevance
+  labels.
 - Source discovery uses heuristics, and article extraction is tuned to the
   sources ingested so far.
 
