@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 from alembic import command
+from alembic.script import ScriptDirectory
 import pytest
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.exc import IntegrityError
@@ -131,7 +132,7 @@ def test_initialize_database_uses_migrations_for_new_file_database(tmp_path):
         initialize_database(connection)
         version = connection.execute("SELECT version_num FROM alembic_version").fetchone()
 
-    assert version["version_num"] == "0003_add_query_run_telemetry"
+    assert version["version_num"] == alembic_head(make_alembic_config(db_path))
 
 
 def test_telemetry_migration_preserves_existing_query_runs(tmp_path):
@@ -184,7 +185,7 @@ def test_initialize_database_adopts_unversioned_initial_schema(tmp_path):
             ).fetchall()
         }
 
-    assert version["version_num"] == "0002_add_research_sessions_query_runs"
+    assert version["version_num"] == alembic_head(make_alembic_config(db_path))
     assert dict(company) == {"ticker": "NVDA", "name": "NVIDIA CORP"}
     assert table_names == EXPECTED_TABLES
 
@@ -326,3 +327,7 @@ def test_query_session_orm_schema_round_trips_json_and_enforces_status(tmp_path)
         with pytest.raises(IntegrityError):
             session.commit()
         session.rollback()
+
+
+def alembic_head(cfg) -> str:
+    return ScriptDirectory.from_config(cfg).get_current_head()

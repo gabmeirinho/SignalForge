@@ -206,7 +206,9 @@ curl -sS http://localhost:8000/api/query \
 ```
 
 Telemetry is stored on the `query_runs` row for the returned `query_run_id` and
-is also returned in the `telemetry` object of the query response. In the matching
+is also returned in the `telemetry` object of the query response. Saved runs,
+including their telemetry, can be read back with `GET /api/query-runs` and
+`GET /api/query-runs/{id}`, which also back the frontend history view. In the matching
 Langfuse project, open **Tracing** and select the latest `signalforge.query`
 trace. It contains `signalforge.planning`, `signalforge.retrieval`, and
 `signalforge.answer` child spans. The exporter sends the Langfuse v4 ingestion
