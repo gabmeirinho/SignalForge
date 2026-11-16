@@ -131,6 +131,7 @@ class QueryRunRecord:
     retrieval_metadata: dict[str, Any]
     answer_text: str | None
     error_message: str | None
+    telemetry: dict[str, Any]
     started_at: datetime | str
     completed_at: datetime | str | None
     created_at: datetime | str
@@ -254,28 +255,6 @@ def _sqlite_path_from_target(target: str | Path) -> Path:
 
 def initialize_database(connection: StorageConnection) -> None:
     upgrade_database(connection.target)
-
-
-def _migration_target_for_empty_database(connection: StorageConnection) -> str | None:
-    user_tables = {
-        row["name"]
-        for row in connection.execute(
-            """
-            SELECT name
-            FROM sqlite_master
-            WHERE type = 'table'
-              AND name NOT LIKE 'sqlite_%'
-              AND name != 'alembic_version'
-            """
-        ).fetchall()
-    }
-    if user_tables:
-        return None
-
-    database_path = connection.execute("PRAGMA database_list").fetchone()["file"]
-    if not database_path:
-        return None
-    return database_path
 
 
 def upsert_company(connection: StorageConnection, company: CompanyRecord) -> int:
@@ -596,6 +575,7 @@ def complete_query_run(
     answer_model: str | None = None,
     embedding_model: str | None = None,
     vector_collection: str | None = None,
+    telemetry: dict[str, Any] | None = None,
 ) -> None:
     _finish_query_run(
         connection,
@@ -609,6 +589,7 @@ def complete_query_run(
         answer_model=answer_model,
         embedding_model=embedding_model,
         vector_collection=vector_collection,
+        telemetry=telemetry,
     )
 
 
@@ -623,6 +604,7 @@ def fail_query_run(
     answer_model: str | None = None,
     embedding_model: str | None = None,
     vector_collection: str | None = None,
+    telemetry: dict[str, Any] | None = None,
 ) -> None:
     _finish_query_run(
         connection,
@@ -636,6 +618,7 @@ def fail_query_run(
         answer_model=answer_model,
         embedding_model=embedding_model,
         vector_collection=vector_collection,
+        telemetry=telemetry,
     )
 
 
@@ -1119,6 +1102,7 @@ def _finish_query_run(
     answer_model: str | None,
     embedding_model: str | None,
     vector_collection: str | None,
+    telemetry: dict[str, Any] | None,
 ) -> None:
     if status not in QUERY_RUN_STATUSES - {"running"}:
         raise ValueError(f"Unsupported completed query run status: {status}")
@@ -1146,6 +1130,15 @@ def _finish_query_run(
         run.embedding_model = embedding_model
     if vector_collection is not None:
         run.vector_collection = vector_collection
+    if telemetry is not None:
+        for key in (
+            "planning_ms", "retrieval_ms", "answer_ms", "total_ms",
+            "planner_provider", "answer_provider", "planner_prompt_version",
+            "answer_prompt_version", "token_usage_status", "prompt_tokens",
+            "completion_tokens", "retry_count", "fallback_count", "error_category",
+        ):
+            setattr(run, key, telemetry.get(key))
+        run.token_usage_json = telemetry.get("token_usage")
     session.commit()
 
 
@@ -1163,6 +1156,23 @@ def _query_run_record(run: QueryRun) -> QueryRunRecord:
         retrieval_metadata=dict(run.retrieval_metadata_json or {}),
         answer_text=run.answer_text,
         error_message=run.error_message,
+        telemetry={
+            "planning_ms": run.planning_ms,
+            "retrieval_ms": run.retrieval_ms,
+            "answer_ms": run.answer_ms,
+            "total_ms": run.total_ms,
+            "planner_provider": run.planner_provider,
+            "answer_provider": run.answer_provider,
+            "planner_prompt_version": run.planner_prompt_version,
+            "answer_prompt_version": run.answer_prompt_version,
+            "token_usage_status": run.token_usage_status,
+            "prompt_tokens": run.prompt_tokens,
+            "completion_tokens": run.completion_tokens,
+            "token_usage": run.token_usage_json,
+            "retry_count": run.retry_count,
+            "fallback_count": run.fallback_count,
+            "error_category": run.error_category,
+        },
         started_at=run.started_at,
         completed_at=run.completed_at,
         created_at=run.created_at,
@@ -1202,10 +1212,6 @@ def _validate_choice(field_name: str, value: str, supported_values: set[str]) ->
     if value not in supported_values:
         allowed = ", ".join(sorted(supported_values))
         raise ValueError(f"Unsupported {field_name}: {value}. Expected one of: {allowed}")
-
-
-def _utc_now() -> str:
-    return datetime.now(UTC).isoformat()
 
 
 def _utc_now_datetime() -> datetime:

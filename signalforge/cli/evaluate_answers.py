@@ -14,6 +14,7 @@ from signalforge.answer_generator import (
 from signalforge.cli.answer_query import select_ready_accessions_by_ticker, years_for_plan_scope
 from signalforge.cli.evaluate_planner import compare_plan
 from signalforge.config import RuntimeConfig
+from signalforge.evaluation.dataset import DEFAULT_DATASET, load_dataset
 from signalforge.query_planner import (
     PlannerContext,
     SearchPlan,
@@ -26,14 +27,16 @@ from signalforge.vector_store import (
 )
 
 
-DEFAULT_DATASET = Path("tests/fixtures/planner_golden.json")
 CITATION_RE = re.compile(r"\[\d+\]")
 
 
 def main() -> None:
     load_dotenv()
     args = parse_args()
-    cases = json.loads(args.dataset.read_text())
+    dataset = load_dataset(args.dataset)
+    cases = dataset.cases
+    print(f"Dataset version: {dataset.version}")
+    print(f"Dataset content SHA-256: {dataset.content_hash}")
     if args.case_id:
         cases = [case for case in cases if case["id"] == args.case_id]
         if not cases:

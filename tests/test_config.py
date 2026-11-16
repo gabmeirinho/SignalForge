@@ -34,6 +34,23 @@ def test_runtime_config_falls_back_to_local_paths(monkeypatch):
     assert config.qdrant_target == "data/local-qdrant"
 
 
+def test_tracing_is_disabled_unless_explicitly_enabled(monkeypatch):
+    monkeypatch.delenv("SIGNALFORGE_TRACING_ENABLED", raising=False)
+    assert RuntimeConfig.from_environment().tracing_enabled is False
+    monkeypatch.setenv("SIGNALFORGE_TRACING_ENABLED", "1")
+    monkeypatch.setenv(
+        "SIGNALFORGE_OTLP_TRACES_ENDPOINT",
+        "https://cloud.langfuse.com/api/public/otel/v1/traces",
+    )
+    monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "public")
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "secret")
+    config = RuntimeConfig.from_environment()
+    assert config.tracing_enabled is True
+    assert config.otlp_traces_endpoint.endswith("/api/public/otel/v1/traces")
+    assert config.langfuse_public_key == "public"
+    assert config.langfuse_secret_key == "secret"
+
+
 def test_connect_database_accepts_sqlite_url(tmp_path):
     db_path = tmp_path / "signalforge.sqlite3"
 

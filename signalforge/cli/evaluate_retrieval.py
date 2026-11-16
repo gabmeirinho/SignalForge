@@ -5,6 +5,7 @@ from pathlib import Path
 
 from signalforge.answer_generator import format_source_label
 from signalforge.config import RuntimeConfig
+from signalforge.evaluation.dataset import DEFAULT_DATASET, load_dataset
 from signalforge.storage import connect_database, get_ready_accession_numbers, initialize_database
 from signalforge.vector_store import (
     create_qdrant_client,
@@ -12,12 +13,12 @@ from signalforge.vector_store import (
 )
 
 
-DEFAULT_DATASET = Path("tests/fixtures/planner_golden.json")
-
-
 def main() -> None:
     args = parse_args()
-    cases = json.loads(args.dataset.read_text())
+    dataset = load_dataset(args.dataset)
+    cases = dataset.cases
+    print(f"Dataset version: {dataset.version}")
+    print(f"Dataset content SHA-256: {dataset.content_hash}")
     if args.case_id:
         cases = [case for case in cases if case["id"] == args.case_id]
         if not cases:

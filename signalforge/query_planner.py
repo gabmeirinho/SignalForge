@@ -166,6 +166,11 @@ class DeepSeekQueryPlanner:
 
     @retry(stop=stop_after_attempt(2), wait=wait_fixed(0.5), reraise=True)
     def _request_plan(self, *, question: str, context: PlannerContext) -> str:
+        from signalforge.telemetry import current_telemetry
+
+        telemetry = current_telemetry()
+        if telemetry is not None:
+            telemetry.record_attempt("planning")
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[
@@ -180,6 +185,8 @@ class DeepSeekQueryPlanner:
             temperature=PLANNER_TEMPERATURE,
             extra_body={"thinking": {"type": "disabled"}},
         )
+        if telemetry is not None:
+            telemetry.record_usage("planning", response)
         content = response.choices[0].message.content
         if not content:
             raise ValueError("DeepSeek returned an empty planner response")
