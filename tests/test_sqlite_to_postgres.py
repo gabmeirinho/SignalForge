@@ -4,10 +4,11 @@ from urllib.parse import urlparse
 
 import pytest
 from sqlalchemy import create_engine, text
+from psycopg.types.json import Jsonb
 
 from signalforge.config import sqlalchemy_database_url
 from signalforge.sections import TextChunk
-from signalforge.sqlite_to_postgres import migrate_sqlite_to_postgres
+from signalforge.sqlite_to_postgres import _prepare_row, migrate_sqlite_to_postgres
 from signalforge.storage import (
     CompanyRecord,
     DocumentRecord,
@@ -45,6 +46,20 @@ SIGNALFORGE_TABLES = (
     "filings",
     "alembic_version",
 )
+
+
+def test_query_run_token_usage_is_adapted_for_postgres_jsonb():
+    row = _prepare_row(
+        {
+            "planned_query_json": "{}",
+            "retrieval_metadata_json": "{}",
+            "token_usage_json": '{"planning": {"status": "reported"}}',
+        },
+        table_name="query_runs",
+        dialect_name="postgresql",
+    )
+    assert isinstance(row["token_usage_json"], Jsonb)
+    assert row["token_usage_json"].obj == {"planning": {"status": "reported"}}
 
 
 @pytest.fixture

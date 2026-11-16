@@ -1,16 +1,21 @@
 from dataclasses import dataclass
 
 from signalforge.answer_generator import (
+    ANSWER_PROMPT_VERSION,
+    AnswerGenerator,
     create_answer_generator_from_environment,
     format_source_label,
 )
 from signalforge.config import RuntimeConfig, target_exists
 from signalforge.query_planner import (
+    PLANNER_PROMPT_VERSION,
+    DeepSeekQueryPlanner,
     PlannerContext,
     SearchPlan,
     build_planner_context,
     create_query_planner_from_environment,
 )
+from signalforge.telemetry import QueryTelemetry
 from signalforge.storage import (
     connect_database,
     get_ready_accession_numbers,
@@ -55,6 +60,7 @@ class QueryResponse:
     planner_error: str | None
     warnings: list[str]
     sources: list[SourceChunk]
+    telemetry: QueryTelemetry | None = None
 
 
 def answer_question(
@@ -66,6 +72,7 @@ def answer_question(
     embedding_model: str | None = None,
     planner_model: str | None = None,
     answer_model: str | None = None,
+    telemetry: QueryTelemetry | None = None,
 ) -> QueryResponse:
     config = RuntimeConfig.from_environment()
     db_path = db_path or config.database_target
@@ -74,71 +81,93 @@ def answer_question(
     embedding_model = embedding_model or config.embedding_model
     planner_model = planner_model or config.planner_model
     answer_model = answer_model or config.answer_model
+    telemetry = telemetry or QueryTelemetry(config=config)
+    telemetry.planner_model = planner_model
+    telemetry.answer_model = answer_model
+    telemetry.planner_prompt_version = PLANNER_PROMPT_VERSION
+    telemetry.answer_prompt_version = ANSWER_PROMPT_VERSION
 
-    if not target_exists(db_path):
-        raise FileNotFoundError(f"SignalForge database not found at {db_path}")
-    if not target_exists(qdrant_path):
-        raise FileNotFoundError(f"SignalForge Qdrant index not found at {qdrant_path}")
-
-    with connect_database(db_path) as connection:
-        initialize_database(connection)
-        context = build_planner_context(load_planner_metadata(connection))
-        planner = create_query_planner_from_environment(model=planner_model)
-        planning_result = planner.create_plan(question, context)
-        plan = planning_result.plan
-        accessions_by_ticker = select_ready_accessions_by_ticker(
-            connection,
-            plan=plan,
-            context=context,
-            embedding_model=embedding_model,
-            collection=collection,
-        )
-
-    accessions = sorted(
-        {
-            accession
-            for ticker_accessions in accessions_by_ticker.values()
-            for accession in ticker_accessions
-        }
-    )
-
-    chunks = []
-    if plan.tickers:
-        client = create_qdrant_client(qdrant_path)
+    with telemetry.activate():
         try:
-            chunks = retrieve_chunks(
-                client,
-                query=plan.semantic_queries[0],
-                collection_name=collection,
-                embedding_model=embedding_model,
-                limit=plan.top_k,
-                tickers=plan.tickers,
-                section_ids=plan.sections,
-                accession_numbers=accessions,
-                accession_numbers_by_ticker=accessions_by_ticker,
-                intent=plan.intent,
-                time_scope=plan.time_scope,
+            if not target_exists(db_path):
+                raise FileNotFoundError(f"SignalForge database not found at {db_path}")
+            if not target_exists(qdrant_path):
+                raise FileNotFoundError(f"SignalForge Qdrant index not found at {qdrant_path}")
+
+            with connect_database(db_path) as connection:
+                initialize_database(connection)
+                context = build_planner_context(load_planner_metadata(connection))
+                planner = create_query_planner_from_environment(model=planner_model)
+                telemetry.planner_provider = (
+                    "deepseek" if isinstance(planner, DeepSeekQueryPlanner) else "local"
+                )
+                with telemetry.stage("planning"):
+                    planning_result = planner.create_plan(question, context)
+                if planning_result.used_fallback:
+                    telemetry.fallback_count += 1
+                plan = planning_result.plan
+                with telemetry.stage("retrieval"):
+                    accessions_by_ticker = select_ready_accessions_by_ticker(
+                        connection,
+                        plan=plan,
+                        context=context,
+                        embedding_model=embedding_model,
+                        collection=collection,
+                    )
+                    accessions = sorted(
+                        {
+                            accession
+                            for ticker_accessions in accessions_by_ticker.values()
+                            for accession in ticker_accessions
+                        }
+                    )
+                    chunks = []
+                    if plan.tickers:
+                        client = create_qdrant_client(qdrant_path)
+                        try:
+                            chunks = retrieve_chunks(
+                                client,
+                                query=plan.semantic_queries[0],
+                                collection_name=collection,
+                                embedding_model=embedding_model,
+                                limit=plan.top_k,
+                                tickers=plan.tickers,
+                                section_ids=plan.sections,
+                                accession_numbers=accessions,
+                                accession_numbers_by_ticker=accessions_by_ticker,
+                                intent=plan.intent,
+                                time_scope=plan.time_scope,
+                            )
+                        finally:
+                            client.close()
+
+            generator = create_answer_generator_from_environment(model=answer_model)
+            telemetry.answer_provider = (
+                "deepseek" if isinstance(generator, AnswerGenerator) else "local"
             )
-        finally:
-            client.close()
-
-    generator = create_answer_generator_from_environment(model=answer_model)
-    generated = generator.generate(
-        question=question,
-        plan=plan,
-        chunks=chunks,
-        available_years_by_ticker=context.filing_years_by_ticker,
-    )
-
-    return QueryResponse(
-        question=question,
-        answer=generated.answer,
-        plan=plan,
-        used_fallback=planning_result.used_fallback,
-        planner_error=planning_result.error,
-        warnings=generated.warnings,
-        sources=source_chunks_from_results(chunks),
-    )
+            with telemetry.stage("answer"):
+                generated = generator.generate(
+                    question=question,
+                    plan=plan,
+                    chunks=chunks,
+                    available_years_by_ticker=context.filing_years_by_ticker,
+                )
+            if telemetry.answer_provider == "local":
+                telemetry.fallback_count += 1
+            telemetry.finish("completed")
+            return QueryResponse(
+                question=question,
+                answer=generated.answer,
+                plan=plan,
+                used_fallback=planning_result.used_fallback,
+                planner_error=planning_result.error,
+                warnings=generated.warnings,
+                sources=source_chunks_from_results(chunks),
+                telemetry=telemetry,
+            )
+        except Exception as error:
+            telemetry.finish("failed", type(error).__name__)
+            raise
 
 
 def select_ready_accessions_by_ticker(

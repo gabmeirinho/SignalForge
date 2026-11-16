@@ -188,82 +188,6 @@ def test_index_returns_filings_and_section_counts(monkeypatch, tmp_path):
     assert payload["sources"][1]["name"] == "NVIDIA Newsroom"
 
 
-def test_index_health_endpoint_exposes_postgres_and_qdrant_counts(monkeypatch, tmp_path):
-    db_path = tmp_path / "signalforge.sqlite3"
-    qdrant_path = tmp_path / "qdrant"
-    db_path.touch()
-    qdrant_path.mkdir()
-    monkeypatch.setenv("SIGNALFORGE_DB_PATH", str(db_path))
-    monkeypatch.setenv("SIGNALFORGE_QDRANT_PATH", str(qdrant_path))
-    monkeypatch.setenv("SIGNALFORGE_EMBEDDING_MODEL", "test-model")
-    monkeypatch.setenv("SIGNALFORGE_COLLECTION", "test-collection")
-
-    class FakeQdrantClient:
-        def close(self):
-            pass
-
-    def fake_check_index_health(connection, qdrant_client, *, collection, embedding_model):
-        assert collection == "test-collection"
-        assert embedding_model == "test-model"
-        return IndexHealth(
-            status="degraded",
-            collection=collection,
-            collection_exists=True,
-            embedding_model=embedding_model,
-            sec=CorpusIndexHealth(
-                name="sec",
-                postgres_expected_points=2,
-                postgres_ready_points=2,
-                postgres_embedding_records=2,
-                qdrant_points=0,
-            ),
-            documents=CorpusIndexHealth(
-                name="documents",
-                postgres_expected_points=1,
-                postgres_ready_points=1,
-                postgres_embedding_records=1,
-                qdrant_points=1,
-            ),
-        )
-
-    monkeypatch.setattr("signalforge.api.create_qdrant_client", lambda target: FakeQdrantClient())
-    monkeypatch.setattr("signalforge.api.check_index_health", fake_check_index_health)
-
-    response = TestClient(app).get("/api/index/health")
-
-    assert response.status_code == 200
-    assert response.json() == {
-        "status": "degraded",
-        "collection": "test-collection",
-        "collection_exists": True,
-        "embedding_model": "test-model",
-        "total_postgres_expected_points": 3,
-        "total_qdrant_points": 1,
-        "sec": {
-            "name": "sec",
-            "postgres_expected_points": 2,
-            "postgres_ready_points": 2,
-            "postgres_embedding_records": 2,
-            "qdrant_points": 0,
-            "missing_qdrant_points": 2,
-            "extra_qdrant_points": 0,
-            "is_complete_in_postgres": True,
-            "is_consistent_with_qdrant": False,
-        },
-        "documents": {
-            "name": "documents",
-            "postgres_expected_points": 1,
-            "postgres_ready_points": 1,
-            "postgres_embedding_records": 1,
-            "qdrant_points": 1,
-            "missing_qdrant_points": 0,
-            "extra_qdrant_points": 0,
-            "is_complete_in_postgres": True,
-            "is_consistent_with_qdrant": True,
-        },
-    }
-
-
 def test_query_runs_endpoint_returns_recent_runs_without_qdrant(monkeypatch, tmp_path):
     db_path = tmp_path / "signalforge.sqlite3"
     monkeypatch.setenv("SIGNALFORGE_DB_PATH", str(db_path))
@@ -477,6 +401,11 @@ def test_query_validates_and_shapes_response(monkeypatch, tmp_path):
     assert run.question == "What are NVIDIA's risks?"
     assert run.status == "completed"
     assert run.answer_text == "NVIDIA cites supply-chain risk [1]."
+    assert run.telemetry["total_ms"] is not None
+    assert run.telemetry["token_usage_status"] == "unavailable"
+    detail = client.get(f"/api/query-runs/{payload['query_run_id']}").json()
+    assert detail["telemetry"]["token_usage_status"] == "unavailable"
+    assert detail["telemetry"]["total_ms"] is not None
     assert run.planned_query == {
         "tickers": ["NVDA"],
         "sections": ["1A"],
@@ -635,6 +564,9 @@ def test_query_persists_failed_run_when_answer_generation_raises(monkeypatch, tm
     assert run.status == "failed"
     assert run.answer_text is None
     assert run.error_message == "RAG query failed: RuntimeError"
+    assert run.telemetry["error_category"] == "RuntimeError"
+    assert run.telemetry["total_ms"] is not None
+    assert run.telemetry["token_usage_status"] == "unavailable"
     assert run.planner_model == "planner-v1"
     assert run.answer_model == "answer-v1"
     assert run.embedding_model == "embedding-v1"

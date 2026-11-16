@@ -1,16 +1,16 @@
-import json
 from pathlib import Path
 
 import pytest
 
 from signalforge.cli.evaluate_planner import compare_plan
+from signalforge.evaluation.dataset import load_dataset
 
 
 DATASET_PATH = Path(__file__).parent / "fixtures" / "planner_golden.json"
 
 
 def test_golden_dataset_has_unique_valid_cases():
-    cases = json.loads(DATASET_PATH.read_text())
+    cases = load_dataset(DATASET_PATH).cases
 
     assert cases
     assert len({case["id"] for case in cases}) == len(cases)

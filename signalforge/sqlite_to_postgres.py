@@ -226,6 +226,8 @@ def _prepare_row(row: dict[str, Any], *, table_name: str, dialect_name: str) -> 
         row["retrieval_metadata_json"] = Jsonb(
             _decode_metadata_json(row["retrieval_metadata_json"])
         )
+        if row.get("token_usage_json") is not None:
+            row["token_usage_json"] = Jsonb(_decode_metadata_json(row["token_usage_json"]))
 
     if table_name == "sources" and dialect_name == "postgresql":
         row["enabled"] = bool(row["enabled"])
