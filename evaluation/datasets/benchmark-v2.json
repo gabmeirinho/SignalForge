@@ -1,0 +1,3708 @@
+{
+  "version": "2.0",
+  "corpus": [
+    {
+      "label": "fx:nvda-2026-1a-supply-concentration",
+      "ticker": "NVDA",
+      "section_id": "1A",
+      "filing_year": 2026,
+      "text": "We depend on a small number of third-party foundries and packaging partners to manufacture our GPUs. A disruption at any one of these suppliers could constrain our ability to ship products and meet customer demand."
+    },
+    {
+      "label": "fx:nvda-2026-1a-export-controls",
+      "ticker": "NVDA",
+      "section_id": "1A",
+      "filing_year": 2026,
+      "text": "New export control rules restrict sales of certain data center accelerators to some regions. Further restrictions could reduce demand for our products and require us to redesign offerings."
+    },
+    {
+      "label": "fx:nvda-2026-1a-supplier-view-a",
+      "ticker": "NVDA",
+      "section_id": "1A",
+      "filing_year": 2026,
+      "text": "One supplier disclosure in this filing states that our reliance on our largest foundry partner increased during the year, with that partner producing a larger share of our wafers."
+    },
+    {
+      "label": "fx:nvda-2026-1a-supplier-view-b",
+      "ticker": "NVDA",
+      "section_id": "1A",
+      "filing_year": 2026,
+      "text": "Another supplier disclosure in this filing states that our reliance on our largest foundry partner decreased as we qualified additional manufacturing sources. The filing does not reconcile the two statements."
+    },
+    {
+      "label": "fx:nvda-2026-1a-intro",
+      "ticker": "NVDA",
+      "section_id": "1A",
+      "filing_year": 2026,
+      "text": "The risks described below are not the only ones we face. Read this section together with the cautionary note on forward-looking statements and the consolidated financial statements included elsewhere in this report."
+    },
+    {
+      "label": "fx:nvda-2025-1a-supply-concentration",
+      "ticker": "NVDA",
+      "section_id": "1A",
+      "filing_year": 2025,
+      "text": "We rely on a single foundry partner for most of our advanced wafers, and any capacity shortfall at that partner could delay our product launches."
+    },
+    {
+      "label": "fx:nvda-2026-1-products",
+      "ticker": "NVDA",
+      "section_id": "1",
+      "filing_year": 2026,
+      "text": "We design graphics processing units, data center accelerators, networking products and the software platforms that run on them, serving gaming, professional visualization, data center and automotive markets."
+    },
+    {
+      "label": "fx:nvda-2026-1-human-capital",
+      "ticker": "NVDA",
+      "section_id": "1",
+      "filing_year": 2026,
+      "text": "We employ staff in more than 30 countries and invest in training, retention and benefits programs to attract engineering talent."
+    },
+    {
+      "label": "fx:nvda-2026-7-revenue",
+      "ticker": "NVDA",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "Revenue for the fiscal year was 10 benchmark units, driven primarily by data center demand."
+    },
+    {
+      "label": "fx:nvda-2025-7-revenue",
+      "ticker": "NVDA",
+      "section_id": "7",
+      "filing_year": 2025,
+      "text": "Revenue for the fiscal year was 8 benchmark units, with gaming and data center both contributing to growth."
+    },
+    {
+      "label": "fx:nvda-2026-7-stock-compensation",
+      "ticker": "NVDA",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "Stock-based compensation expense increased as we expanded headcount and granted equity awards to retain engineering talent."
+    },
+    {
+      "label": "fx:amd-2026-1a-manufacturing-capacity",
+      "ticker": "AMD",
+      "section_id": "1A",
+      "filing_year": 2026,
+      "text": "Our products are manufactured by third parties, and if they cannot allocate enough advanced manufacturing capacity to us, we may be unable to meet demand for our processors."
+    },
+    {
+      "label": "fx:amd-2026-1a-customer-concentration",
+      "ticker": "AMD",
+      "section_id": "1A",
+      "filing_year": 2026,
+      "text": "A limited number of customers account for a significant portion of our revenue, and the loss of any of them could materially reduce our sales."
+    },
+    {
+      "label": "fx:amd-2026-1a-intro",
+      "ticker": "AMD",
+      "section_id": "1A",
+      "filing_year": 2026,
+      "text": "This section describes risks we currently consider material. Additional risks that are not known to us, or that we now consider immaterial, may also affect our business."
+    },
+    {
+      "label": "fx:amd-2026-1-products",
+      "ticker": "AMD",
+      "section_id": "1",
+      "filing_year": 2026,
+      "text": "We design high-performance computing products, including CPUs, GPUs, adaptive SoCs and FPGAs, for data center, client, gaming and embedded customers."
+    },
+    {
+      "label": "fx:amd-2026-1-available-information",
+      "ticker": "AMD",
+      "section_id": "1",
+      "filing_year": 2026,
+      "text": "Our annual reports, quarterly reports and proxy statements are available free of charge on our investor relations website shortly after we file them with the SEC."
+    },
+    {
+      "label": "fx:amd-2026-7-revenue",
+      "ticker": "AMD",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "Net revenue for the year was 10 benchmark units, reflecting higher data center and client segment sales."
+    },
+    {
+      "label": "fx:amd-2026-7-gross-margin-view-a",
+      "ticker": "AMD",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "One discussion of results in this section reports gross margin of 50 benchmark units for the year."
+    },
+    {
+      "label": "fx:amd-2026-7-gross-margin-view-b",
+      "ticker": "AMD",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "A separate discussion of results in this section reports gross margin of 47 benchmark units for the same year. The filing does not say which figure is correct."
+    },
+    {
+      "label": "fx:amd-2026-7-liquidity",
+      "ticker": "AMD",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "We believe our cash, cash equivalents and available credit facilities will be sufficient to fund operations and capital expenditures for at least the next 12 months."
+    },
+    {
+      "label": "fx:amd-2022-7a-currency",
+      "ticker": "AMD",
+      "section_id": "7A",
+      "filing_year": 2022,
+      "text": "Our foreign currency exposure, measured as the effect of a 10% adverse rate movement, was 1 benchmark unit."
+    },
+    {
+      "label": "fx:amd-2023-7a-currency",
+      "ticker": "AMD",
+      "section_id": "7A",
+      "filing_year": 2023,
+      "text": "Our foreign currency exposure, measured as the effect of a 10% adverse rate movement, was 2 benchmark units."
+    },
+    {
+      "label": "fx:amd-2024-7a-currency",
+      "ticker": "AMD",
+      "section_id": "7A",
+      "filing_year": 2024,
+      "text": "Our foreign currency exposure, measured as the effect of a 10% adverse rate movement, was 3 benchmark units."
+    },
+    {
+      "label": "fx:amd-2026-7a-currency",
+      "ticker": "AMD",
+      "section_id": "7A",
+      "filing_year": 2026,
+      "text": "Our foreign currency exposure, measured as the effect of a 10% adverse rate movement, was 4 benchmark units."
+    },
+    {
+      "label": "fx:amd-2023-7a-interest-rate",
+      "ticker": "AMD",
+      "section_id": "7A",
+      "filing_year": 2023,
+      "text": "A hypothetical 100 basis point increase in interest rates would not materially change the fair value of our debt investments."
+    },
+    {
+      "label": "fx:amd-2024-7a-intro",
+      "ticker": "AMD",
+      "section_id": "7A",
+      "filing_year": 2024,
+      "text": "Information about market risk should be read together with the liquidity and capital resources discussion in Item 7."
+    },
+    {
+      "label": "fx:amzn-2026-1-business",
+      "ticker": "AMZN",
+      "section_id": "1",
+      "filing_year": 2026,
+      "text": "We serve consumers through online and physical stores, sellers through our marketplace services, and developers and enterprises through our cloud computing services."
+    },
+    {
+      "label": "fx:amzn-2026-1-available-information",
+      "ticker": "AMZN",
+      "section_id": "1",
+      "filing_year": 2026,
+      "text": "Our investor relations website provides free access to our annual and quarterly reports and amendments as soon as reasonably practicable after filing."
+    },
+    {
+      "label": "fx:amzn-2026-7-segment-growth",
+      "ticker": "AMZN",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "North America, International and cloud segment sales together grew by 4 benchmark units compared with the prior year, with cloud contributing the largest increase."
+    },
+    {
+      "label": "fx:amzn-2026-7-critical-accounting",
+      "ticker": "AMZN",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "Preparing our financial statements requires estimates for inventory valuation, income taxes and contingencies, and actual results could differ from those estimates."
+    },
+    {
+      "label": "fx:amzn-2026-1a-data-center-power",
+      "ticker": "AMZN",
+      "section_id": "1A",
+      "filing_year": 2026,
+      "text": "Constraints on power availability could limit the expansion of our data center capacity."
+    },
+    {
+      "label": "fx:amzn-2022-1a-delivery-network",
+      "ticker": "AMZN",
+      "section_id": "1A",
+      "filing_year": 2022,
+      "text": "Disruptions in our fulfillment and delivery network, including labor shortages and transportation constraints, could delay shipments and increase our costs."
+    },
+    {
+      "label": "fx:amzn-2022-1a-intro",
+      "ticker": "AMZN",
+      "section_id": "1A",
+      "filing_year": 2022,
+      "text": "Please carefully consider the following risks, which could affect our business, financial condition and operating results, before investing in our securities."
+    },
+    {
+      "label": "fx:meta-2026-7-expenses-infrastructure",
+      "ticker": "META",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "Total costs and expenses rose during the year as we prioritized investment in data centers, servers and network infrastructure to support our AI efforts."
+    },
+    {
+      "label": "fx:meta-2026-7-segment-growth",
+      "ticker": "META",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "Family of Apps revenue grew by 2 benchmark units, while Reality Labs revenue was roughly flat."
+    },
+    {
+      "label": "fx:meta-2026-7-capex-view-a",
+      "ticker": "META",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "One outlook statement in this section forecasts that infrastructure spending will increase next year."
+    },
+    {
+      "label": "fx:meta-2026-7-capex-view-b",
+      "ticker": "META",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "Another outlook statement in this section forecasts that infrastructure spending will be flat next year. Neither statement is dated."
+    },
+    {
+      "label": "fx:meta-2026-7-non-gaap",
+      "ticker": "META",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "We present certain non-GAAP measures, such as free cash flow, which should be considered in addition to, not as a substitute for, GAAP results."
+    },
+    {
+      "label": "fx:meta-2026-1a-cybersecurity",
+      "ticker": "META",
+      "section_id": "1A",
+      "filing_year": 2026,
+      "text": "Cybersecurity incidents, including breaches of our systems or those of our vendors, could expose user data, disrupt our services and harm our reputation."
+    },
+    {
+      "label": "fx:meta-2026-1a-user-engagement",
+      "ticker": "META",
+      "section_id": "1A",
+      "filing_year": 2026,
+      "text": "If we fail to retain existing users or keep them engaged with our products, our advertising revenue could decline."
+    },
+    {
+      "label": "fx:googl-2026-1a-cybersecurity",
+      "ticker": "GOOGL",
+      "section_id": "1A",
+      "filing_year": 2026,
+      "text": "Security breaches and cyberattacks targeting our systems or user data could damage trust in our products and lead to legal liability."
+    },
+    {
+      "label": "fx:googl-2026-1a-antitrust",
+      "ticker": "GOOGL",
+      "section_id": "1A",
+      "filing_year": 2026,
+      "text": "We are subject to antitrust investigations and lawsuits that could result in fines or require changes to our business practices."
+    },
+    {
+      "label": "fx:googl-2026-7-advertising-demand",
+      "ticker": "GOOGL",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "Macroeconomic conditions, particularly changes in advertiser spending, are the main external driver of our advertising revenue."
+    },
+    {
+      "label": "fx:googl-2026-7-segment-growth",
+      "ticker": "GOOGL",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "Google Services and Google Cloud revenue together grew by 3 benchmark units, led by search and cloud."
+    },
+    {
+      "label": "fx:googl-2026-7-share-repurchases",
+      "ticker": "GOOGL",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "During the year we repurchased Class A and Class C shares under our authorized repurchase program."
+    },
+    {
+      "label": "fx:googl-2026-7a-interest-rate",
+      "ticker": "GOOGL",
+      "section_id": "7A",
+      "filing_year": 2026,
+      "text": "Changes in interest rates affect the fair value of our fixed-income investment portfolio; a 100 basis point increase would reduce its value by about 1 benchmark unit."
+    },
+    {
+      "label": "fx:googl-2026-7a-intro",
+      "ticker": "GOOGL",
+      "section_id": "7A",
+      "filing_year": 2026,
+      "text": "We are exposed to financial market risks in the normal course of business. The discussion below should be read with the notes to our consolidated financial statements."
+    },
+    {
+      "label": "fx:msft-2025-7a-foreign-exchange",
+      "ticker": "MSFT",
+      "section_id": "7A",
+      "filing_year": 2025,
+      "text": "Our revenue and expenses are exposed to changes in foreign exchange rates, which we partially hedge with forward contracts and options."
+    },
+    {
+      "label": "fx:msft-2025-7a-equity-price",
+      "ticker": "MSFT",
+      "section_id": "7A",
+      "filing_year": 2025,
+      "text": "We hold equity investments whose fair value could decline with market prices."
+    },
+    {
+      "label": "fx:msft-2025-7a-intro",
+      "ticker": "MSFT",
+      "section_id": "7A",
+      "filing_year": 2025,
+      "text": "The following quantitative disclosures are based on hypothetical changes and do not represent expected losses."
+    },
+    {
+      "label": "fx:msft-2025-1a-competition",
+      "ticker": "MSFT",
+      "section_id": "1A",
+      "filing_year": 2025,
+      "text": "Competition in cloud and productivity software is intense and could reduce our margins."
+    },
+    {
+      "label": "fx:qcom-2021-1a-supplier-concentration",
+      "ticker": "QCOM",
+      "section_id": "1A",
+      "filing_year": 2021,
+      "text": "We rely on a sole or limited number of foundries for our chipsets, so a disruption at a key supplier could materially limit our supply."
+    },
+    {
+      "label": "fx:qcom-2023-1a-licensing-disputes",
+      "ticker": "QCOM",
+      "section_id": "1A",
+      "filing_year": 2023,
+      "text": "Disputes with licensees over royalty payments could reduce our licensing revenue."
+    },
+    {
+      "label": "fx:qcom-2025-1a-diversified-sourcing",
+      "ticker": "QCOM",
+      "section_id": "1A",
+      "filing_year": 2025,
+      "text": "We now source chipsets from several foundries across multiple regions, which reduces but does not eliminate supply disruption risk."
+    },
+    {
+      "label": "fx:qcom-2022-1a-intro",
+      "ticker": "QCOM",
+      "section_id": "1A",
+      "filing_year": 2022,
+      "text": "You should consider each of the following risks, together with the other information in this report, when evaluating our business."
+    },
+    {
+      "label": "fx:qcom-2025-1-products",
+      "ticker": "QCOM",
+      "section_id": "1",
+      "filing_year": 2025,
+      "text": "We develop wireless, RF and computing semiconductor products for smartphones, automotive and IoT devices, and license our patent portfolio."
+    },
+    {
+      "label": "fx:qcom-2025-1-available-information",
+      "ticker": "QCOM",
+      "section_id": "1",
+      "filing_year": 2025,
+      "text": "Our filings with the SEC are available on our website free of charge as soon as practicable after they are filed."
+    },
+    {
+      "label": "fx:avgo-2022-1-semiconductor-products",
+      "ticker": "AVGO",
+      "section_id": "1",
+      "filing_year": 2022,
+      "text": "We design, develop and supply semiconductor devices for networking, broadband, wireless and storage applications, along with infrastructure software."
+    },
+    {
+      "label": "fx:avgo-2022-1-human-capital",
+      "ticker": "AVGO",
+      "section_id": "1",
+      "filing_year": 2022,
+      "text": "We have employees in more than 25 countries and maintain compensation and training programs to attract talent."
+    },
+    {
+      "label": "fx:avgo-2025-1-products",
+      "ticker": "AVGO",
+      "section_id": "1",
+      "filing_year": 2025,
+      "text": "We supply semiconductors for data center networking, custom AI accelerators, broadband and wireless, and infrastructure software for enterprises."
+    },
+    {
+      "label": "fx:avgo-2025-1-available-information",
+      "ticker": "AVGO",
+      "section_id": "1",
+      "filing_year": 2025,
+      "text": "We make our periodic reports available on our investor website without charge after filing them with the SEC."
+    },
+    {
+      "label": "fx:mu-2025-1-memory-products",
+      "ticker": "MU",
+      "section_id": "1",
+      "filing_year": 2025,
+      "text": "We design and manufacture DRAM, NAND and NOR memory and storage products for data center, mobile, client and automotive markets."
+    },
+    {
+      "label": "fx:mu-2025-1-available-information",
+      "ticker": "MU",
+      "section_id": "1",
+      "filing_year": 2025,
+      "text": "Copies of our reports filed with the SEC can be obtained free of charge from our investor relations website."
+    },
+    {
+      "label": "fx:mu-2025-7a-currency",
+      "ticker": "MU",
+      "section_id": "7A",
+      "filing_year": 2025,
+      "text": "Our foreign currency exposure arises mainly from operating costs in Japan, Singapore and Taiwan, which we partially hedge."
+    },
+    {
+      "label": "fx:mu-2025-7a-intro",
+      "ticker": "MU",
+      "section_id": "7A",
+      "filing_year": 2025,
+      "text": "Market risk disclosures below reflect hypothetical changes in rates and prices as of our fiscal year end."
+    },
+    {
+      "label": "fx:nvda-2026-1a-stock-price-volatility",
+      "ticker": "NVDA",
+      "section_id": "1A",
+      "filing_year": 2026,
+      "text": "The market price of our common stock has been volatile and may continue to fluctuate significantly."
+    },
+    {
+      "label": "fx:nvda-2026-1a-climate-regulation",
+      "ticker": "NVDA",
+      "section_id": "1A",
+      "filing_year": 2026,
+      "text": "Climate-related disclosure rules may increase our compliance costs and reporting obligations."
+    },
+    {
+      "label": "fx:nvda-2026-7-operating-expenses",
+      "ticker": "NVDA",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "Research and development expenses increased, reflecting higher compensation and compute costs."
+    },
+    {
+      "label": "fx:nvda-2025-7-critical-accounting",
+      "ticker": "NVDA",
+      "section_id": "7",
+      "filing_year": 2025,
+      "text": "Our critical accounting estimates include inventory reserves and the valuation of goodwill."
+    },
+    {
+      "label": "fx:nvda-2025-7-cash-flows",
+      "ticker": "NVDA",
+      "section_id": "7",
+      "filing_year": 2025,
+      "text": "Cash provided by operating activities increased, primarily due to higher net income."
+    },
+    {
+      "label": "fx:amd-2026-7-segment-definitions",
+      "ticker": "AMD",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "We report results in four segments: Data Center, Client, Gaming and Embedded."
+    },
+    {
+      "label": "fx:amd-2026-7-tax-rate",
+      "ticker": "AMD",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "Our effective tax rate decreased due to a release of valuation allowances on deferred tax assets."
+    },
+    {
+      "label": "fx:amd-2023-7a-hedge-accounting",
+      "ticker": "AMD",
+      "section_id": "7A",
+      "filing_year": 2023,
+      "text": "We designate certain foreign currency forward contracts as cash flow hedges under hedge accounting rules."
+    },
+    {
+      "label": "fx:amd-2022-7a-intro",
+      "ticker": "AMD",
+      "section_id": "7A",
+      "filing_year": 2022,
+      "text": "The following discussion of market risk contains forward-looking statements that involve risks and uncertainties."
+    },
+    {
+      "label": "fx:amzn-2026-1-human-capital",
+      "ticker": "AMZN",
+      "section_id": "1",
+      "filing_year": 2026,
+      "text": "We employed a large full-time and part-time workforce and offer wages and benefits that we review regularly."
+    },
+    {
+      "label": "fx:amzn-2026-1-seasonality",
+      "ticker": "AMZN",
+      "section_id": "1",
+      "filing_year": 2026,
+      "text": "Our business is affected by seasonality, with higher sales volume in the fourth quarter."
+    },
+    {
+      "label": "fx:amzn-2026-1-intellectual-property",
+      "ticker": "AMZN",
+      "section_id": "1",
+      "filing_year": 2026,
+      "text": "We regard our trademarks, service marks, copyrights and patents as important to our success."
+    },
+    {
+      "label": "fx:amzn-2026-1-competition",
+      "ticker": "AMZN",
+      "section_id": "1",
+      "filing_year": 2026,
+      "text": "Our businesses face intense competition from physical, e-commerce and omnichannel retailers and from other technology providers."
+    },
+    {
+      "label": "fx:amzn-2022-1a-foreign-operations",
+      "ticker": "AMZN",
+      "section_id": "1A",
+      "filing_year": 2022,
+      "text": "Our international operations expose us to currency, political and regulatory risks."
+    },
+    {
+      "label": "fx:amzn-2022-1a-government-regulation",
+      "ticker": "AMZN",
+      "section_id": "1A",
+      "filing_year": 2022,
+      "text": "Government regulation of the internet, e-commerce and cloud services is evolving and could increase our costs."
+    },
+    {
+      "label": "fx:amzn-2022-1a-key-personnel",
+      "ticker": "AMZN",
+      "section_id": "1A",
+      "filing_year": 2022,
+      "text": "We depend on our senior management and other key personnel, and the loss of any of them could harm our business."
+    },
+    {
+      "label": "fx:amzn-2022-1a-inventory-risk",
+      "ticker": "AMZN",
+      "section_id": "1A",
+      "filing_year": 2022,
+      "text": "We are exposed to significant inventory risks from changes in consumer demand and product obsolescence."
+    },
+    {
+      "label": "fx:meta-2026-7-tax-provision",
+      "ticker": "META",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "Our provision for income taxes increased due to higher pretax income and changes in tax law."
+    },
+    {
+      "label": "fx:meta-2026-7-share-repurchases",
+      "ticker": "META",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "We repurchased shares of our Class A common stock and paid quarterly cash dividends."
+    },
+    {
+      "label": "fx:meta-2026-1a-regulatory-scrutiny",
+      "ticker": "META",
+      "section_id": "1A",
+      "filing_year": 2026,
+      "text": "We are subject to regulatory scrutiny of our data practices, which could result in fines and product changes."
+    },
+    {
+      "label": "fx:meta-2026-1a-intro",
+      "ticker": "META",
+      "section_id": "1A",
+      "filing_year": 2026,
+      "text": "Investing in our Class A common stock involves a high degree of risk; consider the risks below carefully."
+    },
+    {
+      "label": "fx:googl-2026-1a-ad-revenue-dependence",
+      "ticker": "GOOGL",
+      "section_id": "1A",
+      "filing_year": 2026,
+      "text": "We generate most of our revenue from advertising, and reduced advertiser spending could harm our results."
+    },
+    {
+      "label": "fx:googl-2026-1a-intro",
+      "ticker": "GOOGL",
+      "section_id": "1A",
+      "filing_year": 2026,
+      "text": "Our operations and financial results are subject to various risks and uncertainties described below."
+    },
+    {
+      "label": "fx:googl-2026-7-other-income",
+      "ticker": "GOOGL",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "Other income increased, primarily due to unrealized gains on non-marketable equity securities."
+    },
+    {
+      "label": "fx:googl-2026-7-headcount",
+      "ticker": "GOOGL",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "Headcount grew modestly as we continued to invest in technical talent for AI and cloud."
+    },
+    {
+      "label": "fx:googl-2026-7-capital-expenditures",
+      "ticker": "GOOGL",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "Capital expenditures increased, primarily for servers and data center construction."
+    },
+    {
+      "label": "fx:googl-2026-7a-equity-investments",
+      "ticker": "GOOGL",
+      "section_id": "7A",
+      "filing_year": 2026,
+      "text": "Our non-marketable equity investments are subject to valuation changes that may be significant."
+    },
+    {
+      "label": "fx:googl-2026-7a-hedging-program",
+      "ticker": "GOOGL",
+      "section_id": "7A",
+      "filing_year": 2026,
+      "text": "We use derivative instruments to reduce the volatility of earnings and cash flows from currency movements."
+    },
+    {
+      "label": "fx:msft-2025-7a-credit-risk",
+      "ticker": "MSFT",
+      "section_id": "7A",
+      "filing_year": 2025,
+      "text": "Our fixed-income portfolio is diversified across issuers to limit credit risk concentration."
+    },
+    {
+      "label": "fx:msft-2025-7a-sensitivity-table",
+      "ticker": "MSFT",
+      "section_id": "7A",
+      "filing_year": 2025,
+      "text": "The sensitivity table below shows the hypothetical impact of a 10% change in rates or prices on fair values."
+    },
+    {
+      "label": "fx:msft-2025-7a-investment-policy",
+      "ticker": "MSFT",
+      "section_id": "7A",
+      "filing_year": 2025,
+      "text": "Our investment policy prioritizes capital preservation and liquidity over return."
+    },
+    {
+      "label": "fx:qcom-2024-1a-customer-concentration",
+      "ticker": "QCOM",
+      "section_id": "1A",
+      "filing_year": 2024,
+      "text": "A small number of handset manufacturers account for a large share of our chipset revenue."
+    },
+    {
+      "label": "fx:qcom-2023-1a-intro",
+      "ticker": "QCOM",
+      "section_id": "1A",
+      "filing_year": 2023,
+      "text": "The following risk factors may affect our future business and results of operations."
+    },
+    {
+      "label": "fx:avgo-2022-1-available-information",
+      "ticker": "AVGO",
+      "section_id": "1",
+      "filing_year": 2022,
+      "text": "Our website provides access to our SEC filings free of charge after they are filed."
+    },
+    {
+      "label": "fx:avgo-2022-1-acquisition-strategy",
+      "ticker": "AVGO",
+      "section_id": "1",
+      "filing_year": 2022,
+      "text": "We have grown through acquisitions and continue to evaluate opportunities that fit our strategy."
+    },
+    {
+      "label": "fx:avgo-2022-1-customers",
+      "ticker": "AVGO",
+      "section_id": "1",
+      "filing_year": 2022,
+      "text": "We sell products to original equipment manufacturers, distributors and contract manufacturers."
+    },
+    {
+      "label": "fx:avgo-2022-1-backlog",
+      "ticker": "AVGO",
+      "section_id": "1",
+      "filing_year": 2022,
+      "text": "Our backlog consists of orders scheduled for delivery within the next twelve months."
+    },
+    {
+      "label": "fx:mu-2025-1-human-capital",
+      "ticker": "MU",
+      "section_id": "1",
+      "filing_year": 2025,
+      "text": "We have team members in more than 15 countries and invest in their safety and development."
+    },
+    {
+      "label": "fx:mu-2025-7a-interest-rate",
+      "ticker": "MU",
+      "section_id": "7A",
+      "filing_year": 2025,
+      "text": "Our debt bears primarily fixed interest rates, so changes in market rates have limited effect on our interest expense."
+    },
+    {
+      "label": "fx:nvda-2026-1a-forward-looking",
+      "ticker": "NVDA",
+      "section_id": "1A",
+      "filing_year": 2026,
+      "text": "This report contains forward-looking statements that are subject to risks and uncertainties, and actual results may differ materially."
+    },
+    {
+      "label": "fx:nvda-2026-1a-summary-heading",
+      "ticker": "NVDA",
+      "section_id": "1A",
+      "filing_year": 2026,
+      "text": "Summary of risk factors: the following is a summary of the principal risks described in more detail below."
+    },
+    {
+      "label": "fx:amzn-2022-1a-forward-looking",
+      "ticker": "AMZN",
+      "section_id": "1A",
+      "filing_year": 2022,
+      "text": "This annual report includes forward-looking statements, and our actual results could differ materially from those anticipated."
+    },
+    {
+      "label": "fx:amzn-2022-1a-summary-heading",
+      "ticker": "AMZN",
+      "section_id": "1A",
+      "filing_year": 2022,
+      "text": "The risk factors below are organized by category and are not presented in order of importance."
+    },
+    {
+      "label": "fx:meta-2026-7-intro",
+      "ticker": "META",
+      "section_id": "7",
+      "filing_year": 2026,
+      "text": "The following discussion should be read in conjunction with our consolidated financial statements and related notes."
+    },
+    {
+      "label": "fx:amd-2023-7a-sensitivity-note",
+      "ticker": "AMD",
+      "section_id": "7A",
+      "filing_year": 2023,
+      "text": "The sensitivity analyses below use hypothetical changes and are not predictions of future results."
+    },
+    {
+      "label": "fx:qcom-2025-1a-intro",
+      "ticker": "QCOM",
+      "section_id": "1A",
+      "filing_year": 2025,
+      "text": "Our business is subject to the risks described below, any of which could adversely affect our results."
+    }
+  ],
+  "cases": [
+    {
+      "id": "latest_risk_factors",
+      "question": "What are NVIDIA's latest risk factors?",
+      "query_class": "lookup",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "NVDA"
+        ],
+        "sections": [
+          "1A"
+        ],
+        "time_scope": "latest",
+        "intent": "summary"
+      },
+      "relevant": [
+        {
+          "label": "fx:nvda-2026-1a-supply-concentration",
+          "grade": 2
+        },
+        {
+          "label": "fx:nvda-2026-1a-export-controls",
+          "grade": 2
+        },
+        {
+          "label": "fx:nvda-2026-1a-supplier-view-a",
+          "grade": 1
+        },
+        {
+          "label": "fx:nvda-2026-1a-supplier-view-b",
+          "grade": 1
+        },
+        {
+          "label": "fx:nvda-2026-1a-stock-price-volatility",
+          "grade": 1
+        },
+        {
+          "label": "fx:nvda-2026-1a-climate-regulation",
+          "grade": 1
+        }
+      ],
+      "answer_facts": [
+        "Supplier concentration in manufacturing is identified as a risk.",
+        "Export controls are identified as a risk."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "grounded_answer",
+        "lookup"
+      ]
+    },
+    {
+      "id": "business_overview",
+      "question": "What does Amazon's business do?",
+      "query_class": "synthesis",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "AMZN"
+        ],
+        "sections": [
+          "1"
+        ],
+        "time_scope": "latest",
+        "intent": "summary"
+      },
+      "relevant": [
+        {
+          "label": "fx:amzn-2026-1-business",
+          "grade": 2
+        },
+        {
+          "label": "fx:amzn-2026-1-competition",
+          "grade": 1
+        }
+      ],
+      "answer_facts": [
+        "The business includes online retail and cloud services."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "grounded_answer",
+        "synthesis"
+      ]
+    },
+    {
+      "id": "management_discussion",
+      "question": "Summarize Meta's financial performance and management outlook.",
+      "query_class": "synthesis",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "META"
+        ],
+        "sections": [
+          "7"
+        ],
+        "time_scope": "latest",
+        "intent": "summary"
+      },
+      "relevant": [
+        {
+          "label": "fx:meta-2026-7-expenses-infrastructure",
+          "grade": 2
+        },
+        {
+          "label": "fx:meta-2026-7-segment-growth",
+          "grade": 2
+        },
+        {
+          "label": "fx:meta-2026-7-capex-view-a",
+          "grade": 1
+        },
+        {
+          "label": "fx:meta-2026-7-capex-view-b",
+          "grade": 1
+        },
+        {
+          "label": "fx:meta-2026-7-tax-provision",
+          "grade": 1
+        }
+      ],
+      "answer_facts": [
+        "Expenses rose and infrastructure investment was a management priority.",
+        "Family of Apps revenue grew by 2 benchmark units."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "grounded_answer",
+        "synthesis"
+      ]
+    },
+    {
+      "id": "market_risk",
+      "question": "What market risks does Microsoft report?",
+      "query_class": "lookup",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "MSFT"
+        ],
+        "sections": [
+          "7A"
+        ],
+        "time_scope": "latest",
+        "intent": "summary"
+      },
+      "relevant": [
+        {
+          "label": "fx:msft-2025-7a-foreign-exchange",
+          "grade": 2
+        },
+        {
+          "label": "fx:msft-2025-7a-equity-price",
+          "grade": 1
+        },
+        {
+          "label": "fx:msft-2025-7a-credit-risk",
+          "grade": 1
+        }
+      ],
+      "answer_facts": [
+        "Foreign-exchange exposure is a market risk."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "grounded_answer",
+        "lookup"
+      ]
+    },
+    {
+      "id": "financial_fact",
+      "question": "What revenue did AMD report?",
+      "query_class": "lookup",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "AMD"
+        ],
+        "sections": [
+          "7"
+        ],
+        "time_scope": "latest",
+        "intent": "fact"
+      },
+      "relevant": [
+        {
+          "label": "fx:amd-2026-7-revenue",
+          "grade": 2
+        }
+      ],
+      "answer_facts": [
+        "Benchmark revenue is 10 units."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "grounded_answer",
+        "lookup"
+      ]
+    },
+    {
+      "id": "unavailable_company",
+      "question": "Summarize Intel's latest risks.",
+      "query_class": "missing_evidence",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [],
+        "sections": [
+          "1A"
+        ],
+        "time_scope": "latest",
+        "intent": "summary"
+      },
+      "relevant": [],
+      "answer_facts": [
+        "The requested Intel filing is unavailable."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "abstention",
+        "missing_evidence"
+      ]
+    },
+    {
+      "id": "company_comparison",
+      "question": "Compare NVIDIA and AMD's latest risk factors.",
+      "query_class": "comparison",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "NVDA",
+          "AMD"
+        ],
+        "sections": [
+          "1A"
+        ],
+        "time_scope": "latest",
+        "intent": "comparison"
+      },
+      "relevant": [
+        {
+          "label": "fx:nvda-2026-1a-supply-concentration",
+          "grade": 2
+        },
+        {
+          "label": "fx:amd-2026-1a-manufacturing-capacity",
+          "grade": 2
+        },
+        {
+          "label": "fx:nvda-2026-1a-export-controls",
+          "grade": 1
+        },
+        {
+          "label": "fx:nvda-2026-1a-supplier-view-a",
+          "grade": 1
+        },
+        {
+          "label": "fx:nvda-2026-1a-supplier-view-b",
+          "grade": 1
+        },
+        {
+          "label": "fx:nvda-2026-1a-stock-price-volatility",
+          "grade": 1
+        },
+        {
+          "label": "fx:nvda-2026-1a-climate-regulation",
+          "grade": 1
+        },
+        {
+          "label": "fx:amd-2026-1a-customer-concentration",
+          "grade": 1
+        }
+      ],
+      "answer_facts": [
+        "NVIDIA identifies supply concentration; AMD identifies manufacturing capacity."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "grounded_answer",
+        "comparison"
+      ]
+    },
+    {
+      "id": "two_company_market_risk_comparison",
+      "question": "Compare Microsoft's and Google's latest market risks.",
+      "query_class": "comparison",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "MSFT",
+          "GOOGL"
+        ],
+        "sections": [
+          "7A"
+        ],
+        "time_scope": "latest",
+        "intent": "comparison"
+      },
+      "relevant": [
+        {
+          "label": "fx:msft-2025-7a-foreign-exchange",
+          "grade": 2
+        },
+        {
+          "label": "fx:googl-2026-7a-interest-rate",
+          "grade": 2
+        },
+        {
+          "label": "fx:msft-2025-7a-equity-price",
+          "grade": 1
+        },
+        {
+          "label": "fx:msft-2025-7a-credit-risk",
+          "grade": 1
+        },
+        {
+          "label": "fx:googl-2026-7a-equity-investments",
+          "grade": 1
+        },
+        {
+          "label": "fx:googl-2026-7a-hedging-program",
+          "grade": 1
+        }
+      ],
+      "answer_facts": [
+        "Microsoft identifies currency exposure; Google identifies interest-rate exposure."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "grounded_answer",
+        "comparison"
+      ]
+    },
+    {
+      "id": "two_company_risk_summary",
+      "question": "Summarize the latest cybersecurity risk factors for Meta and Google.",
+      "query_class": "synthesis",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "META",
+          "GOOGL"
+        ],
+        "sections": [
+          "1A"
+        ],
+        "time_scope": "latest",
+        "intent": "summary"
+      },
+      "relevant": [
+        {
+          "label": "fx:meta-2026-1a-cybersecurity",
+          "grade": 2
+        },
+        {
+          "label": "fx:googl-2026-1a-cybersecurity",
+          "grade": 2
+        }
+      ],
+      "answer_facts": [
+        "Both companies mention cybersecurity incidents."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "grounded_answer",
+        "synthesis"
+      ]
+    },
+    {
+      "id": "previous_period",
+      "question": "How did NVIDIA's revenue change from the previous filing?",
+      "query_class": "comparison",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "NVDA"
+        ],
+        "sections": [
+          "7"
+        ],
+        "time_scope": "latest_and_previous",
+        "intent": "comparison"
+      },
+      "relevant": [
+        {
+          "label": "fx:nvda-2026-7-revenue",
+          "grade": 2
+        },
+        {
+          "label": "fx:nvda-2025-7-revenue",
+          "grade": 2
+        }
+      ],
+      "answer_facts": [
+        "Revenue increased from 8 to 10 benchmark units."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "grounded_answer",
+        "comparison"
+      ]
+    },
+    {
+      "id": "historical_trend",
+      "question": "How have Qualcomm's risk factors changed over time?",
+      "query_class": "trend",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "QCOM"
+        ],
+        "sections": [
+          "1A"
+        ],
+        "time_scope": "all_available",
+        "intent": "trend"
+      },
+      "relevant": [
+        {
+          "label": "fx:qcom-2021-1a-supplier-concentration",
+          "grade": 2
+        },
+        {
+          "label": "fx:qcom-2025-1a-diversified-sourcing",
+          "grade": 2
+        },
+        {
+          "label": "fx:qcom-2023-1a-licensing-disputes",
+          "grade": 1
+        },
+        {
+          "label": "fx:qcom-2024-1a-customer-concentration",
+          "grade": 1
+        }
+      ],
+      "answer_facts": [
+        "The benchmark excerpts shift from supplier concentration to diversified sourcing."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "grounded_answer",
+        "trend"
+      ]
+    },
+    {
+      "id": "specific_historical_year",
+      "question": "What business operations did Broadcom report in 2022?",
+      "query_class": "lookup",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "AVGO"
+        ],
+        "sections": [
+          "1"
+        ],
+        "time_scope": "specific_years",
+        "filing_years": [
+          2022
+        ],
+        "intent": "summary"
+      },
+      "relevant": [
+        {
+          "label": "fx:avgo-2022-1-semiconductor-products",
+          "grade": 2
+        },
+        {
+          "label": "fx:avgo-2022-1-acquisition-strategy",
+          "grade": 1
+        },
+        {
+          "label": "fx:avgo-2022-1-customers",
+          "grade": 1
+        }
+      ],
+      "answer_facts": [
+        "The 2022 business excerpt describes semiconductor products."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "grounded_answer",
+        "lookup"
+      ]
+    },
+    {
+      "id": "unavailable_year",
+      "question": "Show me Microsoft's risk factors from 2026.",
+      "query_class": "missing_evidence",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "MSFT"
+        ],
+        "sections": [
+          "1A"
+        ],
+        "time_scope": "specific_years",
+        "filing_years": [],
+        "intent": "summary"
+      },
+      "relevant": [],
+      "answer_facts": [
+        "The requested 2026 filing is unavailable."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "abstention",
+        "missing_evidence"
+      ]
+    },
+    {
+      "id": "multi_ticker_financial_comparison",
+      "question": "Compare the latest MD&A segments for Alphabet, Meta, and Amazon.",
+      "query_class": "comparison",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "GOOGL",
+          "META",
+          "AMZN"
+        ],
+        "sections": [
+          "7"
+        ],
+        "time_scope": "latest",
+        "intent": "comparison"
+      },
+      "relevant": [
+        {
+          "label": "fx:googl-2026-7-segment-growth",
+          "grade": 2
+        },
+        {
+          "label": "fx:meta-2026-7-segment-growth",
+          "grade": 2
+        },
+        {
+          "label": "fx:amzn-2026-7-segment-growth",
+          "grade": 2
+        },
+        {
+          "label": "fx:googl-2026-7-advertising-demand",
+          "grade": 1
+        },
+        {
+          "label": "fx:meta-2026-7-expenses-infrastructure",
+          "grade": 1
+        }
+      ],
+      "answer_facts": [
+        "Alphabet, Meta, and Amazon report growth of 3, 2, and 4 benchmark units respectively."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "grounded_answer",
+        "comparison"
+      ]
+    },
+    {
+      "id": "multi_section_single_ticker",
+      "question": "Give me a complete overview of Micron's business description and market risks from their latest filing.",
+      "query_class": "synthesis",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "MU"
+        ],
+        "sections": [
+          "1",
+          "7A"
+        ],
+        "time_scope": "latest",
+        "intent": "summary"
+      },
+      "relevant": [
+        {
+          "label": "fx:mu-2025-1-memory-products",
+          "grade": 2
+        },
+        {
+          "label": "fx:mu-2025-7a-currency",
+          "grade": 2
+        },
+        {
+          "label": "fx:mu-2025-7a-interest-rate",
+          "grade": 1
+        }
+      ],
+      "answer_facts": [
+        "Micron describes memory products and currency risk."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "grounded_answer",
+        "synthesis"
+      ]
+    },
+    {
+      "id": "historical_range_trend",
+      "question": "How did AMD's reported market risks evolve between 2022 and 2024?",
+      "query_class": "trend",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "AMD"
+        ],
+        "sections": [
+          "7A"
+        ],
+        "time_scope": "specific_years",
+        "filing_years": [
+          2022,
+          2023,
+          2024
+        ],
+        "intent": "trend"
+      },
+      "relevant": [
+        {
+          "label": "fx:amd-2022-7a-currency",
+          "grade": 2
+        },
+        {
+          "label": "fx:amd-2023-7a-currency",
+          "grade": 2
+        },
+        {
+          "label": "fx:amd-2024-7a-currency",
+          "grade": 2
+        },
+        {
+          "label": "fx:amd-2023-7a-interest-rate",
+          "grade": 1
+        },
+        {
+          "label": "fx:amd-2023-7a-hedge-accounting",
+          "grade": 1
+        }
+      ],
+      "answer_facts": [
+        "Currency exposure rises from 1 to 3 benchmark units between 2022 and 2024."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "grounded_answer",
+        "trend"
+      ]
+    },
+    {
+      "id": "ticker_alias_resolution",
+      "question": "What macro trends are impacting Google's parent company in their latest Item 7?",
+      "query_class": "lookup",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "GOOGL"
+        ],
+        "sections": [
+          "7"
+        ],
+        "time_scope": "latest",
+        "intent": "summary"
+      },
+      "relevant": [
+        {
+          "label": "fx:googl-2026-7-advertising-demand",
+          "grade": 2
+        }
+      ],
+      "answer_facts": [
+        "Advertising demand is identified as a macro driver."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "grounded_answer",
+        "lookup"
+      ]
+    },
+    {
+      "id": "all_tickers_cross_section",
+      "question": "Extract the product descriptions for all available semiconductor firms in their latest 10-K.",
+      "query_class": "synthesis",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "AMD",
+          "AVGO",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "sections": [
+          "1"
+        ],
+        "time_scope": "latest",
+        "intent": "fact"
+      },
+      "relevant": [
+        {
+          "label": "fx:amd-2026-1-products",
+          "grade": 2
+        },
+        {
+          "label": "fx:avgo-2025-1-products",
+          "grade": 2
+        },
+        {
+          "label": "fx:mu-2025-1-memory-products",
+          "grade": 2
+        },
+        {
+          "label": "fx:nvda-2026-1-products",
+          "grade": 2
+        },
+        {
+          "label": "fx:qcom-2025-1-products",
+          "grade": 2
+        }
+      ],
+      "answer_facts": [
+        "All five benchmark excerpts describe semiconductor products."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "grounded_answer",
+        "synthesis"
+      ]
+    },
+    {
+      "id": "out_of_scope_section",
+      "question": "Can you show me the executive compensation tables (Item 11) for NVIDIA?",
+      "query_class": "missing_evidence",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "NVDA"
+        ],
+        "sections": [],
+        "time_scope": "latest",
+        "intent": "fact"
+      },
+      "relevant": [],
+      "answer_facts": [
+        "The requested section is unavailable."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "abstention",
+        "missing_evidence"
+      ]
+    },
+    {
+      "id": "earliest_available_period",
+      "question": "What were Amazon's primary risk concerns in the oldest filing available in the system?",
+      "query_class": "lookup",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "AMZN"
+        ],
+        "sections": [
+          "1A"
+        ],
+        "time_scope": "specific_years",
+        "filing_years": [
+          2022
+        ],
+        "intent": "summary"
+      },
+      "relevant": [
+        {
+          "label": "fx:amzn-2022-1a-delivery-network",
+          "grade": 2
+        },
+        {
+          "label": "fx:amzn-2022-1a-foreign-operations",
+          "grade": 1
+        },
+        {
+          "label": "fx:amzn-2022-1a-government-regulation",
+          "grade": 1
+        },
+        {
+          "label": "fx:amzn-2022-1a-key-personnel",
+          "grade": 1
+        },
+        {
+          "label": "fx:amzn-2022-1a-inventory-risk",
+          "grade": 1
+        }
+      ],
+      "answer_facts": [
+        "The 2022 excerpt identifies delivery-network disruption."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "grounded_answer",
+        "lookup"
+      ]
+    },
+    {
+      "id": "completely_irrelevant_query",
+      "question": "What are the recipe ingredients for a traditional Portuguese pastel de nata?",
+      "query_class": "missing_evidence",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [],
+        "sections": [],
+        "time_scope": "latest",
+        "intent": "summary"
+      },
+      "relevant": [],
+      "answer_facts": [
+        "The benchmark corpus cannot answer the unrelated question."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "abstention",
+        "missing_evidence"
+      ]
+    },
+    {
+      "id": "conflict_nvda_risk",
+      "question": "Two NVIDIA risk excerpts disagree about supplier concentration. What can be concluded?",
+      "query_class": "conflicting_source",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "NVDA"
+        ],
+        "sections": [
+          "1A"
+        ],
+        "time_scope": "latest",
+        "intent": "fact"
+      },
+      "relevant": [
+        {
+          "label": "fx:nvda-2026-1a-supplier-view-a",
+          "grade": 2
+        },
+        {
+          "label": "fx:nvda-2026-1a-supplier-view-b",
+          "grade": 2
+        },
+        {
+          "label": "fx:nvda-2026-1a-supply-concentration",
+          "grade": 1
+        }
+      ],
+      "answer_facts": [
+        "The sources conflict; the direction cannot be determined from these excerpts."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "source_conflict",
+        "uncertainty"
+      ]
+    },
+    {
+      "id": "conflict_meta_outlook",
+      "question": "Do Meta sources agree about next-year infrastructure spending?",
+      "query_class": "conflicting_source",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "META"
+        ],
+        "sections": [
+          "7"
+        ],
+        "time_scope": "latest",
+        "intent": "fact"
+      },
+      "relevant": [
+        {
+          "label": "fx:meta-2026-7-capex-view-a",
+          "grade": 2
+        },
+        {
+          "label": "fx:meta-2026-7-capex-view-b",
+          "grade": 2
+        },
+        {
+          "label": "fx:meta-2026-7-expenses-infrastructure",
+          "grade": 1
+        }
+      ],
+      "answer_facts": [
+        "The forecasts conflict and neither can be preferred from the supplied evidence."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "source_conflict",
+        "uncertainty"
+      ]
+    },
+    {
+      "id": "conflict_amd_revenue",
+      "question": "What gross margin does AMD report when two sources give different figures?",
+      "query_class": "conflicting_source",
+      "context": {
+        "available_tickers": [
+          "AMD",
+          "AMZN",
+          "AVGO",
+          "GOOGL",
+          "META",
+          "MSFT",
+          "MU",
+          "NVDA",
+          "QCOM"
+        ],
+        "available_sections": [
+          "1",
+          "1A",
+          "7",
+          "7A"
+        ],
+        "filing_years_by_ticker": {
+          "AMD": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AMZN": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "AVGO": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "GOOGL": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "META": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "MSFT": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "MU": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ],
+          "NVDA": [
+            2026,
+            2025,
+            2024,
+            2023,
+            2022
+          ],
+          "QCOM": [
+            2025,
+            2024,
+            2023,
+            2022,
+            2021
+          ]
+        }
+      },
+      "expected_plan": {
+        "tickers": [
+          "AMD"
+        ],
+        "sections": [
+          "7"
+        ],
+        "time_scope": "latest",
+        "intent": "fact"
+      },
+      "relevant": [
+        {
+          "label": "fx:amd-2026-7-gross-margin-view-a",
+          "grade": 2
+        },
+        {
+          "label": "fx:amd-2026-7-gross-margin-view-b",
+          "grade": 2
+        }
+      ],
+      "answer_facts": [
+        "The reported gross margins conflict: 50 versus 47 benchmark units."
+      ],
+      "rubric_tags": [
+        "synthetic",
+        "source_conflict",
+        "uncertainty"
+      ]
+    }
+  ]
+}

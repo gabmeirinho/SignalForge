@@ -111,7 +111,24 @@ on the conflicting-source questions. These are the next target for prompt work.
 uv run python -m signalforge.cli.evaluate_planner --dataset evaluation/datasets/benchmark-v1.json
 ```
 
-The test suite has 154 Python tests (plus an optional Postgres profile) and
+Benchmark v2 (`evaluation/datasets/benchmark-v2.json`) prepares retrieval
+scoring. It keeps v1's 24 questions and plans, and adds a shared corpus of 111
+synthetic passages tagged with ticker, section, and filing year. Each case grades
+corpus passages as required (2) or related (1); anything unlisted is irrelevant.
+Validation requires every answerable case to have at least three in-scope
+distractors, so a retriever has to rank the right passage above wrong ones in the
+same filing instead of returning everything that passes the filters.
+
+The corpus can be embedded into a separate, test-only Qdrant collection (the
+fixture index). Passages are stored with the same payload as real filing chunks,
+so the unmodified retrieval code searches them. The collection is named after the
+dataset hash and embedding model, and is reused until either changes:
+
+```bash
+uv run python -m signalforge.cli.build_fixture_index
+```
+
+The test suite has 176 Python tests (plus an optional Postgres profile) and
 frontend tests with Vitest.
 
 ## Quickstart
@@ -162,8 +179,8 @@ docker compose up --build
   cross-encoder reranker.
 - Retrieval is dense-only. A hybrid BM25 and dense setup would help with exact
   financial terms and figures.
-- Retrieval and answer scores still need a fixture index built from the
-  benchmark's synthetic passages.
+- Retrieval and answer scores still need recall@k and MRR computed against the
+  benchmark v2 relevance labels on the fixture index.
 - Source discovery uses heuristics, and article extraction is tuned to the
   sources ingested so far.
 
